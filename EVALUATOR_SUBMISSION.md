@@ -9,9 +9,9 @@ Copy and paste this to your evaluator agent once deployed:
 ### 📊 Project Information
 
 **Project Name**: Real-Time Collaborative Whiteboard  
-**Deployed URL**: [YOUR VERCEL URL HERE]  
-**GitHub Repository**: [YOUR GITHUB URL HERE]  
-**Submission Date**: [TODAY'S DATE]  
+**Deployed URL**: https://whiteboatd-mvp-gruk.vercel.app/  
+**GitHub Repository**: https://github.com/Jojobeans1981/whiteboatd-mvp  
+**Submission Date**: 2/17/2026  
 **Deadline**: 12:59 PM  
 
 ---
