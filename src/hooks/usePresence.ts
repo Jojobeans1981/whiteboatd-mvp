@@ -20,7 +20,7 @@ export const usePresence = (boardId: string) => {
         const data = doc.data() as UserPresence;
         // Consider user online if seen in last 30 seconds
         if (data.online && (now - data.lastSeen) < 30000) {
-          users.push({ userId: doc.id, ...data });
+          users.push({ ...data, userId: doc.id });
         }
       });
       setOnlineUsers(users);
