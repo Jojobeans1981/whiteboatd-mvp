@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { Stage, Layer } from 'react-konva';
-import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useBoardObjects } from '../hooks/useBoardObjects';
 import { useCursors } from '../hooks/useCursors';

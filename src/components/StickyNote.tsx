@@ -1,6 +1,6 @@
 // src/components/StickyNote.tsx
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Rect, Text, Group } from 'react-konva';
 import { StickyNote as StickyNoteType } from '../types';
 
