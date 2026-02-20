@@ -405,18 +405,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         messages,
       });
 
-      // Collect tool_use blocks
-      const toolUseBlocks = response.content.filter(
-        (block): block is Anthropic.ContentBlockParam & { type: 'tool_use'; id: string; name: string; input: any } =>
-          block.type === 'tool_use'
-      );
-
       // Extract any text response
-      const textBlocks = response.content.filter(
-        (block): block is Anthropic.TextBlock => block.type === 'text'
-      );
-      if (textBlocks.length > 0) {
-        finalMessage = textBlocks.map((b) => b.text).join('\n');
+      for (const block of response.content) {
+        if (block.type === 'text') {
+          finalMessage = block.text;
+        }
+      }
+
+      // Collect tool_use blocks
+      const toolUseBlocks: Array<{ id: string; name: string; input: any }> = [];
+      for (const block of response.content) {
+        if (block.type === 'tool_use') {
+          toolUseBlocks.push({ id: block.id, name: block.name, input: block.input });
+        }
       }
 
       // If no tool calls, Claude is done
@@ -437,7 +438,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Append assistant response and tool results for next iteration
-      messages.push({ role: 'assistant', content: response.content });
+      messages.push({ role: 'assistant', content: response.content as any });
       messages.push({ role: 'user', content: toolResults });
 
       // If Claude signaled it's done (end_turn), break
