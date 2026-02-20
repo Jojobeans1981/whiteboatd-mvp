@@ -230,10 +230,12 @@ service cloud.firestore {
 **GitHub**: [YOUR REPO URL]
 
 **Key Files**:
-- `src/components/Board.tsx` - Main whiteboard component (300+ lines)
+- `src/components/Board.tsx` - Main whiteboard component with resize handles (~400 lines)
+- `src/components/TextObject.tsx` - Standalone text object renderer
 - `src/hooks/useBoardObjects.ts` - Real-time object sync
 - `src/lib/firebase.ts` - Firebase configuration
-- `README.md` - Complete setup documentation
+- `api/ai.ts` - AI agent serverless function (Gemini + 10 tools, ~450 lines)
+- `AI_DEVELOPMENT_LOG.md` - Full AI development documentation
 
 **Commit History**:
 - Shows incremental development
@@ -271,7 +273,9 @@ service cloud.firestore {
 **Model**: Google Gemini 2.5 Flash (free tier)
 **Architecture**: Vercel Serverless Function + Gemini Function Calling + Client-side Firestore writes
 
-**9 AI Tools**: createStickyNote, createShape, createFrame, createConnector, moveObject, resizeObject, updateText, changeColor, getBoardState
+**10 AI Tools**: createStickyNote, createShape, createFrame, createConnector, createText, moveObject, resizeObject, updateText, changeColor, getBoardState
+
+**Observability**: LangSmith tracing via `traceable` wrapper — traces input, output, latency, and errors for every AI request
 
 **Supported Commands**:
 - Simple: "Create a yellow sticky note", "Create a blue circle"
@@ -300,9 +304,12 @@ service cloud.firestore {
 - ✅ Responsive design (works on mobile)
 - ✅ Clean, professional UI
 - ✅ Delete objects (select + Delete/Backspace key)
-- ✅ AI Board Agent with 9 tools and multi-turn function calling
+- ✅ AI Board Agent with 10 tools and multi-turn function calling
 - ✅ Frames (labeled containers for grouping)
 - ✅ Connectors (arrows between objects)
+- ✅ Standalone text objects (T tool — no background, configurable font size)
+- ✅ Object resize handles (drag corners/edges to resize sticky notes, shapes, and frames)
+- ✅ LangSmith observability (traces AI agent requests, latency, errors)
 
 ---
 
@@ -312,8 +319,6 @@ service cloud.firestore {
 1. Text editing uses browser prompt (simple but functional)
 2. Single board for all users (multi-room coming in Phase 2)
 3. No undo/redo (scheduled for iteration)
-4. No object deletion UI (can add Delete key binding)
-5. No resize/rotate tools (transform tools in Phase 2)
 
 **No Critical Bugs Identified**:
 - Tested across Chrome, Firefox, Safari
@@ -341,11 +346,12 @@ This MVP successfully demonstrates:
 2. **Multiplayer presence** with cursor tracking
 3. **Production-ready deployment** on Vercel
 4. **Secure authentication** via Firebase
-5. **Scalable architecture** ready for AI agent integration
+5. **AI Board Agent** with 10 tools, multi-turn function calling, and LangSmith observability
+6. **Object manipulation** including resize handles, delete, and standalone text objects
 
-All 9 MVP requirements met and tested. Ready for Phase 2 (AI Agent) development.
+All 9 MVP requirements met and tested. AI Board Agent fully operational with Google Gemini free tier.
 
-**Status**: ✅ MVP COMPLETE - Ready for Evaluation
+**Status**: ✅ MVP COMPLETE + AI AGENT DEPLOYED - Ready for Evaluation
 
 ---
 

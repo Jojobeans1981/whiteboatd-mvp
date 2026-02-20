@@ -95,7 +95,7 @@ The system prompt instructs the AI on:
 
 The prompt was iterated to include specific layout templates after initial testing showed the AI placing objects randomly without spatial consistency.
 
-### Tool Definitions (9 tools)
+### Tool Definitions (10 tools)
 
 | Tool | Category | Purpose |
 |------|----------|---------|
@@ -156,9 +156,12 @@ This allows commands like "Create a SWOT analysis" to work, which requires:
 | File | Changes |
 |------|---------|
 | `src/types/index.ts` | Added `frame`, `connector`, `text` to BoardObject type, added `label?`, `fromId?`, `toId?` fields, added `TextObject` interface |
-| `src/components/Board.tsx` | Added Frame/Connector/TextObject/AICommandInput imports, render-order sorting, delete functionality, text tool creation |
+| `src/components/Board.tsx` | Added Frame/Connector/TextObject/AICommandInput imports, render-order sorting, delete functionality, text tool creation, Transformer for resize handles |
+| `src/components/StickyNote.tsx` | Added `nodeRef` and `onTransformEnd` props for resize support |
+| `src/components/Shape.tsx` | Added `nodeRef` and `onTransformEnd` props for resize support |
+| `src/components/Frame.tsx` | Added `nodeRef` and `onTransformEnd` props for resize support |
 | `src/components/Toolbar.tsx` | Added `text` to Tool type, added T button for text tool |
-| `package.json` | Added `@google/generative-ai`, removed `@anthropic-ai/sdk` and `langsmith` |
+| `package.json` | Added `@google/generative-ai`, `langsmith`; removed `@anthropic-ai/sdk` |
 
 ### Client-Side Operation Execution
 
@@ -276,7 +279,7 @@ For a demo/MVP with moderate usage, these limits are sufficient. A production de
   | "Create SWOT"    |--------->|                    |         |                  |
   |                  |          | 1. Parse command    |         |                  |
   |                  |          | 2. Send to Gemini   |         |                  |
-  |                  |          |    with 9 tools     |         |                  |
+  |                  |          |    with 10 tools     |         |                  |
   |                  |          | 3. Process tool     |         |                  |
   |                  |          |    calls in loop    |         |                  |
   |                  |  JSON    | 4. Return operations|         |                  |
@@ -305,3 +308,47 @@ For a demo/MVP with moderate usage, these limits are sufficient. A production de
 4. **Tool definitions are mostly portable**: Anthropic's `input_schema` and Gemini's `parameters` are nearly identical JSON Schema formats. The conversion was mechanical.
 
 5. **Multi-turn tool use is essential**: Complex commands like SWOT analysis require 8+ tool calls. Without the multi-turn loop, the agent would be limited to single-action commands.
+
+---
+
+## 9. Additional Features
+
+### Object Resize Handles
+
+Added Konva `Transformer` component to allow users to resize sticky notes, shapes, and frames by dragging corner/edge handles.
+
+**Implementation:**
+- `Board.tsx` imports `Transformer` from `react-konva` and maintains a `nodeRefs` Map (object ID → Konva node)
+- A `useEffect` attaches the Transformer to the currently selected node
+- `handleTransformEnd()` reads the Konva scale, resets it to 1, and applies it to object dimensions before syncing to Firestore
+- `StickyNote.tsx`, `Shape.tsx`, and `Frame.tsx` each accept `nodeRef` and `onTransformEnd` props
+
+```typescript
+// Board.tsx — attach Transformer to selected node
+useEffect(() => {
+  if (selectedId && transformerRef.current) {
+    const node = nodeRefs.current.get(selectedId);
+    if (node) {
+      transformerRef.current.nodes([node]);
+      transformerRef.current.getLayer()?.batchDraw();
+    }
+  }
+}, [selectedId, objects]);
+```
+
+**Transformer config:** Rotation disabled, blue border/anchors, minimum size 20px.
+
+### Standalone Text Objects
+
+Added a `text` object type for text labels without a background — useful for headings, annotations, and labels.
+
+**Implementation:**
+- `TextObject.tsx` renders a Konva `Text` inside a `Group`, supports dragging and double-click editing
+- `Toolbar.tsx` adds a **T** button for the text tool
+- `Board.tsx` creates text objects with `fontSize: 24` by default
+- AI agent has a `createText` tool (the 10th tool) for creating text via commands
+- `types/index.ts` defines `TextObject` interface with `type: 'text'`, `text`, and `fontSize` fields
+
+### Delete Objects
+
+Select any object and press **Delete** or **Backspace** to remove it from the board and Firestore. The keyboard handler skips the event if the user is typing in an input or textarea.
