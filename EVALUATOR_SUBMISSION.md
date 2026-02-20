@@ -184,7 +184,13 @@ Client A                    Firestore                    Client B
 **Vercel Costs**:
 - Hosting: Free tier (100GB bandwidth)
 - Builds: Free tier (6,000 build minutes)
+- Serverless Functions: Free tier (100GB-hours)
 - **Total Vercel cost**: $0 (within free tier)
+
+**AI API Costs**:
+- Google Gemini 2.5 Flash: Free tier (10 RPM, 250 RPD)
+- No credit card required
+- **Total AI cost**: $0 (within free tier)
 
 **Total Development Cost**: $0
 
@@ -260,6 +266,30 @@ service cloud.firestore {
 
 ---
 
+### 🤖 AI Board Agent
+
+**Model**: Google Gemini 2.5 Flash (free tier)
+**Architecture**: Vercel Serverless Function + Gemini Function Calling + Client-side Firestore writes
+
+**9 AI Tools**: createStickyNote, createShape, createFrame, createConnector, moveObject, resizeObject, updateText, changeColor, getBoardState
+
+**Supported Commands**:
+- Simple: "Create a yellow sticky note", "Create a blue circle"
+- Complex: "Create a SWOT analysis" (generates 4 frames + 4 stickies in 2x2 grid)
+- Layout: "Create a retrospective board", "Create a user journey map"
+- Manipulation: "Change color of [object]", "Move [object]", "Resize [object]"
+
+**Testing Instructions**:
+1. Sign in and look for the AI input bar at the bottom center of the screen
+2. Type "Create a SWOT analysis" and click Send
+3. Wait for the AI to process (~3-5 seconds)
+4. 4 labeled frames + 4 starter sticky notes appear in a 2x2 grid
+5. Open a second browser tab - AI-created objects sync instantly
+
+**AI Development Log**: See `AI_DEVELOPMENT_LOG.md` for full development documentation including architecture decisions, prompt engineering, cost analysis, and lessons learned.
+
+---
+
 ### ✨ Bonus Features (Beyond MVP)
 
 - ✅ Color picker with 8 colors
@@ -269,6 +299,10 @@ service cloud.firestore {
 - ✅ Smooth animations and transitions
 - ✅ Responsive design (works on mobile)
 - ✅ Clean, professional UI
+- ✅ Delete objects (select + Delete/Backspace key)
+- ✅ AI Board Agent with 9 tools and multi-turn function calling
+- ✅ Frames (labeled containers for grouping)
+- ✅ Connectors (arrows between objects)
 
 ---
 

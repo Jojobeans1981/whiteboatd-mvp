@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { Stage, Layer } from 'react-konva';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useBoardObjects } from '../hooks/useBoardObjects';
 import { useCursors } from '../hooks/useCursors';
@@ -174,6 +174,27 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
     const objectRef = doc(db, 'boards', boardId, 'objects', id);
     await updateDoc(objectRef, updates);
   };
+
+  const deleteObject = async (id: string) => {
+    const objectRef = doc(db, 'boards', boardId, 'objects', id);
+    await deleteDoc(objectRef);
+    setSelectedId(null);
+  };
+
+  // Delete selected object on Delete/Backspace key
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        // Don't delete if user is typing in an input
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        e.preventDefault();
+        deleteObject(selectedId);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedId, boardId]);
 
   return (
     <div style={styles.container}>
