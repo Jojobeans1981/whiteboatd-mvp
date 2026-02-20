@@ -462,80 +462,108 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ success: false, error: 'AI service not configured.' });
   }
 
-  // Wrap the AI agent logic with LangSmith tracing
+  // Models to try in order — if the primary is rate-limited, fall back to the next
+  const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+
+  // Core agent logic extracted so it can be retried with different models
+  async function runWithModel(
+    modelName: string,
+    params: { command: string; boardState: BoardObject[]; userId: string }
+  ) {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      systemInstruction: SYSTEM_PROMPT,
+      tools: [{ functionDeclarations: TOOL_DECLARATIONS as any }],
+    });
+
+    const chat = model.startChat();
+    const allOperations: Operation[] = [];
+    let finalMessage = '';
+
+    const userMessage = buildUserMessage(params.command, params.boardState);
+    let result = await chat.sendMessage(userMessage);
+
+    const MAX_ITERATIONS = 10;
+    let iteration = 0;
+
+    while (iteration < MAX_ITERATIONS) {
+      iteration++;
+
+      const response = result.response;
+
+      // Check for text response
+      const text = response.text?.();
+      if (text) {
+        finalMessage = text;
+      }
+
+      // Check for function calls
+      const functionCalls = response.functionCalls?.();
+      if (!functionCalls || functionCalls.length === 0) {
+        break;
+      }
+
+      // Process each function call into operations
+      const functionResponses = [];
+      for (const call of functionCalls) {
+        const toolResult = processToolCall(call.name, call.args, params.userId, params.boardState);
+        allOperations.push(...toolResult.operations);
+        functionResponses.push({
+          functionResponse: {
+            name: call.name,
+            response: { result: toolResult.message },
+          },
+        });
+      }
+
+      // Send function responses back to continue the conversation
+      result = await chat.sendMessage(functionResponses);
+    }
+
+    // Try to get final text if we haven't captured one yet
+    if (!finalMessage) {
+      try {
+        const text = result.response.text?.();
+        if (text) finalMessage = text;
+      } catch (_) {
+        // Ignore - text() throws if response only has function calls
+      }
+    }
+
+    const created = allOperations.filter((o) => o.action === 'create').length;
+    const modified = allOperations.filter((o) => o.action === 'update').length;
+
+    return {
+      success: true,
+      message: finalMessage || `Completed: ${created} objects created, ${modified} modified.`,
+      operations: allOperations,
+      objectsCreated: created,
+      objectsModified: modified,
+      model: modelName,
+    };
+  }
+
+  // Wrap with LangSmith tracing
   const runAgent = traceable(
     async (params: { command: string; boardState: BoardObject[]; userId: string }) => {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash',
-        systemInstruction: SYSTEM_PROMPT,
-        tools: [{ functionDeclarations: TOOL_DECLARATIONS as any }],
-      });
+      let lastError: any;
 
-      const chat = model.startChat();
-      const allOperations: Operation[] = [];
-      let finalMessage = '';
-
-      const userMessage = buildUserMessage(params.command, params.boardState);
-      let result = await chat.sendMessage(userMessage);
-
-      const MAX_ITERATIONS = 10;
-      let iteration = 0;
-
-      while (iteration < MAX_ITERATIONS) {
-        iteration++;
-
-        const response = result.response;
-
-        // Check for text response
-        const text = response.text?.();
-        if (text) {
-          finalMessage = text;
-        }
-
-        // Check for function calls
-        const functionCalls = response.functionCalls?.();
-        if (!functionCalls || functionCalls.length === 0) {
-          break;
-        }
-
-        // Process each function call into operations
-        const functionResponses = [];
-        for (const call of functionCalls) {
-          const toolResult = processToolCall(call.name, call.args, params.userId, params.boardState);
-          allOperations.push(...toolResult.operations);
-          functionResponses.push({
-            functionResponse: {
-              name: call.name,
-              response: { result: toolResult.message },
-            },
-          });
-        }
-
-        // Send function responses back to continue the conversation
-        result = await chat.sendMessage(functionResponses);
-      }
-
-      // Try to get final text if we haven't captured one yet
-      if (!finalMessage) {
+      for (const modelName of MODELS) {
         try {
-          const text = result.response.text?.();
-          if (text) finalMessage = text;
-        } catch (_) {
-          // Ignore - text() throws if response only has function calls
+          return await runWithModel(modelName, params);
+        } catch (error: any) {
+          lastError = error;
+          const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Resource has been exhausted');
+          if (is429 && modelName !== MODELS[MODELS.length - 1]) {
+            console.log(`Model ${modelName} rate limited, falling back to next model...`);
+            continue;
+          }
+          throw error;
         }
       }
 
-      const created = allOperations.filter((o) => o.action === 'create').length;
-      const modified = allOperations.filter((o) => o.action === 'update').length;
-
-      return {
-        success: true,
-        message: finalMessage || `Completed: ${created} objects created, ${modified} modified.`,
-        operations: allOperations,
-        objectsCreated: created,
-        objectsModified: modified,
-      };
+      throw lastError;
     },
     { name: 'whiteboard-ai-agent', run_type: 'chain' }
   );
@@ -546,8 +574,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     console.error('AI agent error:', error);
 
-    if (error?.status === 429 || error?.message?.includes('429')) {
-      return res.status(429).json({ success: false, error: 'AI rate limited. Please try again in a moment.' });
+    if (error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Resource has been exhausted')) {
+      return res.status(429).json({ success: false, error: 'All AI models rate limited. Please wait a minute and try again.' });
     }
 
     return res.status(500).json({
