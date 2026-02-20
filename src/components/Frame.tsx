@@ -7,19 +7,23 @@ interface FrameProps {
   onUpdate: (id: string, updates: Partial<BoardObject>) => void;
   isSelected: boolean;
   onSelect: () => void;
+  nodeRef?: (node: any) => void;
+  onTransformEnd?: () => void;
 }
 
-export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSelect }) => {
+export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSelect, nodeRef, onTransformEnd }) => {
   // Parse a semi-transparent version of the color for the fill
   const fillColor = frame.color + '15';
 
   return (
     <Group
+      ref={nodeRef}
       x={frame.x}
       y={frame.y}
       draggable
       onClick={onSelect}
       onTap={onSelect}
+      onTransformEnd={onTransformEnd}
       onDragEnd={(e) => {
         onUpdate(frame.id, {
           x: e.target.x(),

@@ -9,6 +9,8 @@ interface StickyNoteProps {
   onUpdate: (id: string, updates: Partial<StickyNoteType>) => void;
   isSelected: boolean;
   onSelect: () => void;
+  nodeRef?: (node: any) => void;
+  onTransformEnd?: () => void;
 }
 
 export const StickyNote: React.FC<StickyNoteProps> = ({
@@ -16,6 +18,8 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
   onUpdate,
   isSelected,
   onSelect,
+  nodeRef,
+  onTransformEnd,
 }) => {
   const handleDoubleClick = () => {
     const newText = prompt('Edit text:', sticky.text);
@@ -26,6 +30,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
 
   return (
     <Group
+      ref={nodeRef}
       x={sticky.x}
       y={sticky.y}
       draggable
@@ -40,6 +45,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
       onTap={onSelect}
       onDblClick={handleDoubleClick}
       onDblTap={handleDoubleClick}
+      onTransformEnd={onTransformEnd}
     >
       <Rect
         width={sticky.width}

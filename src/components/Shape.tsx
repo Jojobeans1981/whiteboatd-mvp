@@ -9,6 +9,8 @@ interface ShapeProps {
   onUpdate: (id: string, updates: Partial<ShapeType>) => void;
   isSelected: boolean;
   onSelect: () => void;
+  nodeRef?: (node: any) => void;
+  onTransformEnd?: () => void;
 }
 
 export const Shape: React.FC<ShapeProps> = ({
@@ -16,9 +18,12 @@ export const Shape: React.FC<ShapeProps> = ({
   onUpdate,
   isSelected,
   onSelect,
+  nodeRef,
+  onTransformEnd,
 }) => {
   return (
     <Group
+      ref={nodeRef}
       x={shape.x}
       y={shape.y}
       draggable
@@ -31,6 +36,7 @@ export const Shape: React.FC<ShapeProps> = ({
       }}
       onClick={onSelect}
       onTap={onSelect}
+      onTransformEnd={onTransformEnd}
     >
       {shape.type === 'rectangle' ? (
         <Rect

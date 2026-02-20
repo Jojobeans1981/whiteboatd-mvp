@@ -1,7 +1,7 @@
 // src/components/Board.tsx
 
-import React, { useState, useRef, useCallback } from 'react';
-import { Stage, Layer } from 'react-konva';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Stage, Layer, Transformer } from 'react-konva';
 import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useBoardObjects } from '../hooks/useBoardObjects';
@@ -32,6 +32,8 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
   const [stageScale, setStageScale] = useState(1);
   
   const stageRef = useRef<any>(null);
+  const transformerRef = useRef<any>(null);
+  const nodeRefs = useRef<Map<string, any>>(new Map());
   const { objects } = useBoardObjects(boardId);
   const cursors = useCursors(boardId, user.uid);
   const onlineUsers = usePresence(boardId);
@@ -189,6 +191,49 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
     setSelectedId(null);
   };
 
+  // Attach Transformer to selected node
+  useEffect(() => {
+    if (selectedId && transformerRef.current) {
+      const node = nodeRefs.current.get(selectedId);
+      if (node) {
+        transformerRef.current.nodes([node]);
+        transformerRef.current.getLayer()?.batchDraw();
+      } else {
+        transformerRef.current.nodes([]);
+      }
+    } else if (transformerRef.current) {
+      transformerRef.current.nodes([]);
+    }
+  }, [selectedId, objects]);
+
+  // Handle transform end — sync new dimensions to Firestore
+  const handleTransformEnd = (obj: BoardObject) => {
+    const node = nodeRefs.current.get(obj.id);
+    if (!node) return;
+
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+
+    // Reset scale to 1 and apply it to dimensions
+    node.scaleX(1);
+    node.scaleY(1);
+
+    const updates: any = {
+      x: node.x(),
+      y: node.y(),
+      updatedAt: Date.now(),
+    };
+
+    if (obj.type === 'circle') {
+      updates.radius = Math.max(10, (obj.radius || 60) * Math.max(scaleX, scaleY));
+    } else if (obj.type === 'sticky' || obj.type === 'rectangle' || obj.type === 'frame') {
+      updates.width = Math.max(20, (obj.width || 150) * scaleX);
+      updates.height = Math.max(20, (obj.height || 100) * scaleY);
+    }
+
+    updateObject(obj.id, updates);
+  };
+
   // Delete selected object on Delete/Backspace key
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -245,6 +290,8 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
                     onUpdate={updateObject}
                     isSelected={obj.id === selectedId}
                     onSelect={() => setSelectedId(obj.id)}
+                    nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
+                    onTransformEnd={() => handleTransformEnd(obj)}
                   />
                 );
               } else if (obj.type === 'connector') {
@@ -263,6 +310,8 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
                     onUpdate={updateObject}
                     isSelected={obj.id === selectedId}
                     onSelect={() => setSelectedId(obj.id)}
+                    nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
+                    onTransformEnd={() => handleTransformEnd(obj)}
                   />
                 );
               } else if (obj.type === 'text') {
@@ -283,10 +332,27 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
                     onUpdate={updateObject}
                     isSelected={obj.id === selectedId}
                     onSelect={() => setSelectedId(obj.id)}
+                    nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
+                    onTransformEnd={() => handleTransformEnd(obj)}
                   />
                 );
               }
             })}
+
+          {/* Resize/transform handles for selected object */}
+          <Transformer
+            ref={transformerRef}
+            rotateEnabled={false}
+            borderStroke="#2196f3"
+            anchorStroke="#2196f3"
+            anchorFill="white"
+            anchorSize={8}
+            boundBoxFunc={(oldBox, newBox) => {
+              // Limit minimum size
+              if (newBox.width < 20 || newBox.height < 20) return oldBox;
+              return newBox;
+            }}
+          />
 
           {/* Render cursors */}
           {cursors.map((cursor) => (
