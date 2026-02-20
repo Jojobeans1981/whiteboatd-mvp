@@ -3,10 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
+    "@google/generative-ai": "^0.24.1",
     "firebase": "^10.7.1",
     "konva": "^9.2.3",
-    "langsmith": "^0.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-konva": "^18.2.10",

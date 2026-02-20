@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import Anthropic from '@anthropic-ai/sdk';
-import { wrapSDK } from 'langsmith/wrappers';
+import { GoogleGenerativeAI, SchemaType, FunctionDeclarationSchemaType } from '@google/generative-ai';
 
 // --- ID generation (matches client-side pattern) ---
 function generateId(): string {
@@ -22,24 +21,23 @@ interface UpdateOperation {
 
 type Operation = CreateOperation | UpdateOperation;
 
-// --- Claude tool definitions ---
-const TOOLS: Anthropic.Tool[] = [
+// --- Gemini tool (function) declarations ---
+const TOOL_DECLARATIONS = [
   {
     name: 'createStickyNote',
     description: 'Create a sticky note on the whiteboard with text content.',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        x: { type: 'number', description: 'X coordinate on the board' },
-        y: { type: 'number', description: 'Y coordinate on the board' },
-        text: { type: 'string', description: 'Text content for the sticky note' },
+        x: { type: SchemaType.NUMBER, description: 'X coordinate on the board' },
+        y: { type: SchemaType.NUMBER, description: 'Y coordinate on the board' },
+        text: { type: SchemaType.STRING, description: 'Text content for the sticky note' },
         color: {
-          type: 'string',
-          description: 'Background color hex',
-          enum: ['#FFE066', '#FF6B6B', '#4ECDC4', '#45B7D1', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3'],
+          type: SchemaType.STRING,
+          description: 'Background color hex. Must be one of: #FFE066, #FF6B6B, #4ECDC4, #45B7D1, #95E1D3, #F38181, #AA96DA, #FCBAD3',
         },
-        width: { type: 'number', description: 'Width in pixels, default 200' },
-        height: { type: 'number', description: 'Height in pixels, default 200' },
+        width: { type: SchemaType.NUMBER, description: 'Width in pixels, default 200' },
+        height: { type: SchemaType.NUMBER, description: 'Height in pixels, default 200' },
       },
       required: ['x', 'y', 'text', 'color'],
     },
@@ -47,16 +45,16 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: 'createShape',
     description: 'Create a geometric shape (rectangle or circle) on the whiteboard.',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        x: { type: 'number', description: 'X coordinate' },
-        y: { type: 'number', description: 'Y coordinate' },
-        shapeType: { type: 'string', enum: ['rectangle', 'circle'], description: 'Type of shape' },
-        color: { type: 'string', description: 'Fill color hex' },
-        width: { type: 'number', description: 'Width for rectangle, default 150' },
-        height: { type: 'number', description: 'Height for rectangle, default 100' },
-        radius: { type: 'number', description: 'Radius for circle, default 60' },
+        x: { type: SchemaType.NUMBER, description: 'X coordinate' },
+        y: { type: SchemaType.NUMBER, description: 'Y coordinate' },
+        shapeType: { type: SchemaType.STRING, description: 'Type of shape: "rectangle" or "circle"' },
+        color: { type: SchemaType.STRING, description: 'Fill color hex' },
+        width: { type: SchemaType.NUMBER, description: 'Width for rectangle, default 150' },
+        height: { type: SchemaType.NUMBER, description: 'Height for rectangle, default 100' },
+        radius: { type: SchemaType.NUMBER, description: 'Radius for circle, default 60' },
       },
       required: ['x', 'y', 'shapeType', 'color'],
     },
@@ -64,15 +62,15 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: 'createFrame',
     description: 'Create a frame (labeled container/section) on the whiteboard. Use frames to group related items, like quadrants in a SWOT analysis or columns in a retro board.',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        x: { type: 'number', description: 'X coordinate of top-left corner' },
-        y: { type: 'number', description: 'Y coordinate of top-left corner' },
-        width: { type: 'number', description: 'Width in pixels' },
-        height: { type: 'number', description: 'Height in pixels' },
-        label: { type: 'string', description: 'Label text displayed above the frame' },
-        color: { type: 'string', description: 'Border/label color hex' },
+        x: { type: SchemaType.NUMBER, description: 'X coordinate of top-left corner' },
+        y: { type: SchemaType.NUMBER, description: 'Y coordinate of top-left corner' },
+        width: { type: SchemaType.NUMBER, description: 'Width in pixels' },
+        height: { type: SchemaType.NUMBER, description: 'Height in pixels' },
+        label: { type: SchemaType.STRING, description: 'Label text displayed above the frame' },
+        color: { type: SchemaType.STRING, description: 'Border/label color hex' },
       },
       required: ['x', 'y', 'width', 'height', 'label', 'color'],
     },
@@ -80,12 +78,12 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: 'createConnector',
     description: 'Create a line/arrow connecting two objects on the whiteboard.',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        fromId: { type: 'string', description: 'ID of the source object' },
-        toId: { type: 'string', description: 'ID of the target object' },
-        color: { type: 'string', description: 'Line color hex, default #333333' },
+        fromId: { type: SchemaType.STRING, description: 'ID of the source object' },
+        toId: { type: SchemaType.STRING, description: 'ID of the target object' },
+        color: { type: SchemaType.STRING, description: 'Line color hex, default #333333' },
       },
       required: ['fromId', 'toId'],
     },
@@ -93,12 +91,12 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: 'moveObject',
     description: 'Move an existing object to a new position.',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        objectId: { type: 'string', description: 'ID of the object to move' },
-        x: { type: 'number', description: 'New X coordinate' },
-        y: { type: 'number', description: 'New Y coordinate' },
+        objectId: { type: SchemaType.STRING, description: 'ID of the object to move' },
+        x: { type: SchemaType.NUMBER, description: 'New X coordinate' },
+        y: { type: SchemaType.NUMBER, description: 'New Y coordinate' },
       },
       required: ['objectId', 'x', 'y'],
     },
@@ -106,13 +104,13 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: 'resizeObject',
     description: 'Resize an existing object.',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        objectId: { type: 'string', description: 'ID of the object to resize' },
-        width: { type: 'number', description: 'New width' },
-        height: { type: 'number', description: 'New height' },
-        radius: { type: 'number', description: 'New radius (circles only)' },
+        objectId: { type: SchemaType.STRING, description: 'ID of the object to resize' },
+        width: { type: SchemaType.NUMBER, description: 'New width' },
+        height: { type: SchemaType.NUMBER, description: 'New height' },
+        radius: { type: SchemaType.NUMBER, description: 'New radius (circles only)' },
       },
       required: ['objectId'],
     },
@@ -120,11 +118,11 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: 'updateText',
     description: 'Update the text content of a sticky note or the label of a frame.',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        objectId: { type: 'string', description: 'ID of the sticky note or frame' },
-        text: { type: 'string', description: 'New text content or label' },
+        objectId: { type: SchemaType.STRING, description: 'ID of the sticky note or frame' },
+        text: { type: SchemaType.STRING, description: 'New text content or label' },
       },
       required: ['objectId', 'text'],
     },
@@ -132,11 +130,11 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: 'changeColor',
     description: 'Change the color of an existing object.',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        objectId: { type: 'string', description: 'ID of the object' },
-        color: { type: 'string', description: 'New color hex' },
+        objectId: { type: SchemaType.STRING, description: 'ID of the object' },
+        color: { type: SchemaType.STRING, description: 'New color hex' },
       },
       required: ['objectId', 'color'],
     },
@@ -144,10 +142,9 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: 'getBoardState',
     description: 'Get the current state of all objects on the board. Use this to understand what exists before making changes.',
-    input_schema: {
-      type: 'object' as const,
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {},
-      required: [],
     },
   },
 ];
@@ -379,17 +376,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ success: false, error: 'Missing required fields: command, boardId, userId' });
   }
 
-  try {
-    // Initialize Anthropic client with LangSmith tracing
-    const rawClient = new Anthropic();
-    const anthropic = wrapSDK(rawClient);
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ success: false, error: 'AI service not configured.' });
+  }
 
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash-preview-04-17',
+      systemInstruction: SYSTEM_PROMPT,
+      tools: [{ functionDeclarations: TOOL_DECLARATIONS as any }],
+    });
+
+    const chat = model.startChat();
     const allOperations: Operation[] = [];
     let finalMessage = '';
 
-    const messages: Anthropic.MessageParam[] = [
-      { role: 'user', content: buildUserMessage(command, boardState || []) },
-    ];
+    const userMessage = buildUserMessage(command, boardState || []);
+    let result = await chat.sendMessage(userMessage);
 
     const MAX_ITERATIONS = 10;
     let iteration = 0;
@@ -397,53 +402,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     while (iteration < MAX_ITERATIONS) {
       iteration++;
 
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        tools: TOOLS,
-        messages,
-      });
+      const response = result.response;
 
-      // Extract any text response
-      for (const block of response.content) {
-        if (block.type === 'text') {
-          finalMessage = block.text;
-        }
+      // Check for text response
+      const text = response.text?.();
+      if (text) {
+        finalMessage = text;
       }
 
-      // Collect tool_use blocks
-      const toolUseBlocks: Array<{ id: string; name: string; input: any }> = [];
-      for (const block of response.content) {
-        if (block.type === 'tool_use') {
-          toolUseBlocks.push({ id: block.id, name: block.name, input: block.input });
-        }
-      }
-
-      // If no tool calls, Claude is done
-      if (toolUseBlocks.length === 0) {
+      // Check for function calls
+      const functionCalls = response.functionCalls?.();
+      if (!functionCalls || functionCalls.length === 0) {
         break;
       }
 
-      // Process each tool call into operations
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-      for (const toolCall of toolUseBlocks) {
-        const result = processToolCall(toolCall.name, toolCall.input, userId, boardState || []);
-        allOperations.push(...result.operations);
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: toolCall.id,
-          content: result.message,
+      // Process each function call into operations
+      const functionResponses = [];
+      for (const call of functionCalls) {
+        const toolResult = processToolCall(call.name, call.args, userId, boardState || []);
+        allOperations.push(...toolResult.operations);
+        functionResponses.push({
+          functionResponse: {
+            name: call.name,
+            response: { result: toolResult.message },
+          },
         });
       }
 
-      // Append assistant response and tool results for next iteration
-      messages.push({ role: 'assistant', content: response.content as any });
-      messages.push({ role: 'user', content: toolResults });
+      // Send function responses back to continue the conversation
+      result = await chat.sendMessage(functionResponses);
+    }
 
-      // If Claude signaled it's done (end_turn), break
-      if (response.stop_reason === 'end_turn') {
-        break;
+    // Try to get final text if we haven't captured one yet
+    if (!finalMessage) {
+      try {
+        const text = result.response.text?.();
+        if (text) finalMessage = text;
+      } catch (_) {
+        // Ignore - text() throws if response only has function calls
       }
     }
 
@@ -460,11 +456,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     console.error('AI agent error:', error);
 
-    if (error?.status === 429) {
+    if (error?.status === 429 || error?.message?.includes('429')) {
       return res.status(429).json({ success: false, error: 'AI rate limited. Please try again in a moment.' });
-    }
-    if (error?.status === 401) {
-      return res.status(500).json({ success: false, error: 'AI service configuration error.' });
     }
 
     return res.status(500).json({
