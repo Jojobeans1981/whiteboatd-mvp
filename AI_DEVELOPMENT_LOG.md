@@ -48,7 +48,36 @@ User Command -> POST /api/ai -> Gemini API (function calling) -> Return operatio
 | Multi-turn tool use | Yes | Yes |
 | Quality | Excellent | Good (sufficient for our use case) |
 
-Gemini was chosen purely for cost reasons. The function calling capabilities are equivalent for our 9-tool agent.
+Gemini was chosen purely for cost reasons. The function calling capabilities are equivalent for our 10-tool agent.
+
+### LangSmith Observability
+
+LangSmith tracing is integrated using the `traceable` wrapper from `langsmith/traceable`. The entire AI agent function is wrapped, which traces:
+
+- **Input**: User command, board state, user ID
+- **Output**: Operations generated, final message, object counts
+- **Latency**: Total request duration including all Gemini API calls
+- **Errors**: Any failures are captured with full stack traces
+- **Metadata**: Run type tagged as "chain" for the multi-step agent
+
+```typescript
+import { traceable } from 'langsmith/traceable';
+
+const runAgent = traceable(
+  async (params) => {
+    // ... entire Gemini tool-use loop
+    return { success, message, operations };
+  },
+  { name: 'whiteboard-ai-agent', run_type: 'chain' }
+);
+```
+
+**Environment variables required** (set in Vercel):
+- `LANGSMITH_API_KEY` — from smith.langchain.com
+- `LANGSMITH_TRACING=true` — enables trace collection
+- `LANGSMITH_PROJECT=whiteboard-ai-agent` — project name in LangSmith dashboard
+
+When LangSmith env vars are not set, the `traceable` wrapper is a no-op — the agent still works, just without tracing.
 
 ---
 

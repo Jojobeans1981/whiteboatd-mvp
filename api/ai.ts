@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { traceable } from 'langsmith/traceable';
 
 // --- ID generation (matches client-side pattern) ---
 function generateId(): string {
@@ -418,78 +419,87 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ success: false, error: 'AI service not configured.' });
   }
 
+  // Wrap the AI agent logic with LangSmith tracing
+  const runAgent = traceable(
+    async (params: { command: string; boardState: BoardObject[]; userId: string }) => {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        systemInstruction: SYSTEM_PROMPT,
+        tools: [{ functionDeclarations: TOOL_DECLARATIONS as any }],
+      });
+
+      const chat = model.startChat();
+      const allOperations: Operation[] = [];
+      let finalMessage = '';
+
+      const userMessage = buildUserMessage(params.command, params.boardState);
+      let result = await chat.sendMessage(userMessage);
+
+      const MAX_ITERATIONS = 10;
+      let iteration = 0;
+
+      while (iteration < MAX_ITERATIONS) {
+        iteration++;
+
+        const response = result.response;
+
+        // Check for text response
+        const text = response.text?.();
+        if (text) {
+          finalMessage = text;
+        }
+
+        // Check for function calls
+        const functionCalls = response.functionCalls?.();
+        if (!functionCalls || functionCalls.length === 0) {
+          break;
+        }
+
+        // Process each function call into operations
+        const functionResponses = [];
+        for (const call of functionCalls) {
+          const toolResult = processToolCall(call.name, call.args, params.userId, params.boardState);
+          allOperations.push(...toolResult.operations);
+          functionResponses.push({
+            functionResponse: {
+              name: call.name,
+              response: { result: toolResult.message },
+            },
+          });
+        }
+
+        // Send function responses back to continue the conversation
+        result = await chat.sendMessage(functionResponses);
+      }
+
+      // Try to get final text if we haven't captured one yet
+      if (!finalMessage) {
+        try {
+          const text = result.response.text?.();
+          if (text) finalMessage = text;
+        } catch (_) {
+          // Ignore - text() throws if response only has function calls
+        }
+      }
+
+      const created = allOperations.filter((o) => o.action === 'create').length;
+      const modified = allOperations.filter((o) => o.action === 'update').length;
+
+      return {
+        success: true,
+        message: finalMessage || `Completed: ${created} objects created, ${modified} modified.`,
+        operations: allOperations,
+        objectsCreated: created,
+        objectsModified: modified,
+      };
+    },
+    { name: 'whiteboard-ai-agent', run_type: 'chain' }
+  );
+
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      systemInstruction: SYSTEM_PROMPT,
-      tools: [{ functionDeclarations: TOOL_DECLARATIONS as any }],
-    });
-
-    const chat = model.startChat();
-    const allOperations: Operation[] = [];
-    let finalMessage = '';
-
-    const userMessage = buildUserMessage(command, boardState || []);
-    let result = await chat.sendMessage(userMessage);
-
-    const MAX_ITERATIONS = 10;
-    let iteration = 0;
-
-    while (iteration < MAX_ITERATIONS) {
-      iteration++;
-
-      const response = result.response;
-
-      // Check for text response
-      const text = response.text?.();
-      if (text) {
-        finalMessage = text;
-      }
-
-      // Check for function calls
-      const functionCalls = response.functionCalls?.();
-      if (!functionCalls || functionCalls.length === 0) {
-        break;
-      }
-
-      // Process each function call into operations
-      const functionResponses = [];
-      for (const call of functionCalls) {
-        const toolResult = processToolCall(call.name, call.args, userId, boardState || []);
-        allOperations.push(...toolResult.operations);
-        functionResponses.push({
-          functionResponse: {
-            name: call.name,
-            response: { result: toolResult.message },
-          },
-        });
-      }
-
-      // Send function responses back to continue the conversation
-      result = await chat.sendMessage(functionResponses);
-    }
-
-    // Try to get final text if we haven't captured one yet
-    if (!finalMessage) {
-      try {
-        const text = result.response.text?.();
-        if (text) finalMessage = text;
-      } catch (_) {
-        // Ignore - text() throws if response only has function calls
-      }
-    }
-
-    const created = allOperations.filter((o) => o.action === 'create').length;
-    const modified = allOperations.filter((o) => o.action === 'update').length;
-
-    return res.status(200).json({
-      success: true,
-      message: finalMessage || `Completed: ${created} objects created, ${modified} modified.`,
-      operations: allOperations,
-      objectsCreated: created,
-      objectsModified: modified,
-    });
+    const result = await runAgent({ command, boardState: boardState || [], userId });
+    return res.status(200).json(result);
   } catch (error: any) {
     console.error('AI agent error:', error);
 
