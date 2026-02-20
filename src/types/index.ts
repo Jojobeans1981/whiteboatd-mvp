@@ -2,7 +2,7 @@
 
 export interface BoardObject {
   id: string;
-  type: 'sticky' | 'rectangle' | 'circle' | 'frame' | 'connector';
+  type: 'sticky' | 'rectangle' | 'circle' | 'frame' | 'connector' | 'text';
   x: number;
   y: number;
   width?: number;
@@ -43,6 +43,12 @@ export interface ConnectorObject extends BoardObject {
   type: 'connector';
   fromId: string;
   toId: string;
+}
+
+export interface TextObject extends BoardObject {
+  type: 'text';
+  text: string;
+  fontSize: number;
 }
 
 export interface CursorPosition {

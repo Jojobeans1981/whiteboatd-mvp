@@ -140,6 +140,21 @@ const TOOL_DECLARATIONS = [
     },
   },
   {
+    name: 'createText',
+    description: 'Create a standalone text label on the whiteboard (no background, just text).',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        x: { type: SchemaType.NUMBER, description: 'X coordinate' },
+        y: { type: SchemaType.NUMBER, description: 'Y coordinate' },
+        text: { type: SchemaType.STRING, description: 'Text content' },
+        color: { type: SchemaType.STRING, description: 'Text color hex' },
+        fontSize: { type: SchemaType.NUMBER, description: 'Font size in pixels, default 24' },
+      },
+      required: ['x', 'y', 'text', 'color'],
+    },
+  },
+  {
     name: 'getBoardState',
     description: 'Get the current state of all objects on the board. Use this to understand what exists before making changes.',
     parameters: {
@@ -253,6 +268,28 @@ function processToolCall(
             height: input.height,
             label: input.label,
             color: input.color,
+            createdBy: userId,
+            createdAt: now,
+            updatedAt: now,
+          },
+        }],
+      };
+    }
+
+    case 'createText': {
+      const id = generateId();
+      return {
+        message: `Created text "${input.text}" (id: ${id})`,
+        operations: [{
+          action: 'create',
+          id,
+          data: {
+            type: 'text',
+            x: input.x,
+            y: input.y,
+            text: input.text,
+            color: input.color,
+            fontSize: input.fontSize || 24,
             createdBy: userId,
             createdAt: now,
             updatedAt: now,

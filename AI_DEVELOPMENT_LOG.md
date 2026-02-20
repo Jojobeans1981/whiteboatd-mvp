@@ -74,6 +74,7 @@ The prompt was iterated to include specific layout templates after initial testi
 | `createShape` | Creation | Rectangle or circle with position, color |
 | `createFrame` | Creation | Labeled container/section for grouping |
 | `createConnector` | Creation | Arrow/line between two existing objects |
+| `createText` | Creation | Standalone text label (no background) with font size |
 | `moveObject` | Manipulation | Reposition existing object by ID |
 | `resizeObject` | Manipulation | Change width/height/radius by ID |
 | `updateText` | Manipulation | Update sticky text or frame label by ID |
@@ -113,10 +114,11 @@ This allows commands like "Create a SWOT analysis" to work, which requires:
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `api/ai.ts` | Vercel serverless function with Gemini integration | ~420 |
+| `api/ai.ts` | Vercel serverless function with Gemini integration | ~450 |
 | `src/components/AICommandInput.tsx` | Floating command input UI | ~220 |
 | `src/components/Frame.tsx` | Konva frame renderer (labeled container) | ~53 |
 | `src/components/Connector.tsx` | Konva arrow/connector renderer | ~43 |
+| `src/components/TextObject.tsx` | Standalone text renderer (no background) | ~55 |
 | `api/tsconfig.json` | TypeScript config for API directory | ~13 |
 | `vercel.json` | Vercel deployment config (30s function timeout) | ~7 |
 
@@ -124,8 +126,9 @@ This allows commands like "Create a SWOT analysis" to work, which requires:
 
 | File | Changes |
 |------|---------|
-| `src/types/index.ts` | Added `frame` and `connector` to BoardObject type, added `label?`, `fromId?`, `toId?` fields |
-| `src/components/Board.tsx` | Added Frame/Connector/AICommandInput imports, render-order sorting (frames behind shapes), delete functionality |
+| `src/types/index.ts` | Added `frame`, `connector`, `text` to BoardObject type, added `label?`, `fromId?`, `toId?` fields, added `TextObject` interface |
+| `src/components/Board.tsx` | Added Frame/Connector/TextObject/AICommandInput imports, render-order sorting, delete functionality, text tool creation |
+| `src/components/Toolbar.tsx` | Added `text` to Tool type, added T button for text tool |
 | `package.json` | Added `@google/generative-ai`, removed `@anthropic-ai/sdk` and `langsmith` |
 
 ### Client-Side Operation Execution

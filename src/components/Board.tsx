@@ -11,6 +11,7 @@ import { StickyNote } from './StickyNote';
 import { Shape } from './Shape';
 import { Frame } from './Frame';
 import { Connector } from './Connector';
+import { TextObject } from './TextObject';
 import { Cursor } from './Cursor';
 import { Toolbar, Tool } from './Toolbar';
 import { PresenceIndicator } from './PresenceIndicator';
@@ -165,6 +166,13 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
         type: 'circle',
         radius: 60,
       };
+    } else if (type === 'text') {
+      objectData = {
+        ...objectData,
+        type: 'text',
+        text: 'Double-click to edit',
+        fontSize: 24,
+      };
     }
 
     await setDoc(objectRef, objectData);
@@ -225,7 +233,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
           {/* Render objects sorted by type: frames first (behind), then connectors, then shapes/stickies */}
           {[...objects]
             .sort((a, b) => {
-              const order: Record<string, number> = { frame: 0, connector: 1, rectangle: 2, circle: 2, sticky: 3 };
+              const order: Record<string, number> = { frame: 0, connector: 1, rectangle: 2, circle: 2, sticky: 3, text: 3 };
               return (order[a.type] ?? 2) - (order[b.type] ?? 2);
             })
             .map((obj) => {
@@ -252,6 +260,16 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
                   <StickyNote
                     key={obj.id}
                     sticky={obj as any}
+                    onUpdate={updateObject}
+                    isSelected={obj.id === selectedId}
+                    onSelect={() => setSelectedId(obj.id)}
+                  />
+                );
+              } else if (obj.type === 'text') {
+                return (
+                  <TextObject
+                    key={obj.id}
+                    textObj={obj}
                     onUpdate={updateObject}
                     isSelected={obj.id === selectedId}
                     onSelect={() => setSelectedId(obj.id)}

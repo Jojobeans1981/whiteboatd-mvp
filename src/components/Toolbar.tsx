@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export type Tool = 'select' | 'sticky' | 'rectangle' | 'circle';
+export type Tool = 'select' | 'sticky' | 'rectangle' | 'circle' | 'text';
 
 interface ToolbarProps {
   selectedTool: Tool;
@@ -49,6 +49,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           title="Circle (C)"
         >
           ○
+        </button>
+        <button
+          style={{ ...styles.toolButton, ...(selectedTool === 'text' ? styles.activeButton : {}) }}
+          onClick={() => onToolChange('text')}
+          title="Text (T)"
+        >
+          T
         </button>
       </div>
       
