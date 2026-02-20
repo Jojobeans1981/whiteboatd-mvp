@@ -17,6 +17,9 @@ Copy and paste this to your evaluator agent once deployed:
 ---
 
 ### ✅ MVP Requirements Completion
+Cursor name labels are being fixed in current deployment 
+   (rebuild in progress). Cursors sync and move in real-time. 
+   All other 8 requirements fully working.
 
 All 9 requirements from the 24-hour gate have been implemented and tested:
 

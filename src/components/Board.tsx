@@ -9,9 +9,12 @@ import { useCursors } from '../hooks/useCursors';
 import { usePresence } from '../hooks/usePresence';
 import { StickyNote } from './StickyNote';
 import { Shape } from './Shape';
+import { Frame } from './Frame';
+import { Connector } from './Connector';
 import { Cursor } from './Cursor';
 import { Toolbar, Tool } from './Toolbar';
 import { PresenceIndicator } from './PresenceIndicator';
+import { AICommandInput } from './AICommandInput';
 import { BoardObject, User } from '../types';
 import { generateId, getUserColor, getUserDisplayName } from '../lib/utils';
 
@@ -198,30 +201,53 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
         y={stagePos.y}
       >
         <Layer>
-          {/* Render objects */}
-          {objects.map((obj) => {
-            if (obj.type === 'sticky') {
-              return (
-                <StickyNote
-                  key={obj.id}
-                  sticky={obj as any}
-                  onUpdate={updateObject}
-                  isSelected={obj.id === selectedId}
-                  onSelect={() => setSelectedId(obj.id)}
-                />
-              );
-            } else {
-              return (
-                <Shape
-                  key={obj.id}
-                  shape={obj as any}
-                  onUpdate={updateObject}
-                  isSelected={obj.id === selectedId}
-                  onSelect={() => setSelectedId(obj.id)}
-                />
-              );
-            }
-          })}
+          {/* Render objects sorted by type: frames first (behind), then connectors, then shapes/stickies */}
+          {[...objects]
+            .sort((a, b) => {
+              const order: Record<string, number> = { frame: 0, connector: 1, rectangle: 2, circle: 2, sticky: 3 };
+              return (order[a.type] ?? 2) - (order[b.type] ?? 2);
+            })
+            .map((obj) => {
+              if (obj.type === 'frame') {
+                return (
+                  <Frame
+                    key={obj.id}
+                    frame={obj}
+                    onUpdate={updateObject}
+                    isSelected={obj.id === selectedId}
+                    onSelect={() => setSelectedId(obj.id)}
+                  />
+                );
+              } else if (obj.type === 'connector') {
+                return (
+                  <Connector
+                    key={obj.id}
+                    connector={obj}
+                    objects={objects}
+                  />
+                );
+              } else if (obj.type === 'sticky') {
+                return (
+                  <StickyNote
+                    key={obj.id}
+                    sticky={obj as any}
+                    onUpdate={updateObject}
+                    isSelected={obj.id === selectedId}
+                    onSelect={() => setSelectedId(obj.id)}
+                  />
+                );
+              } else {
+                return (
+                  <Shape
+                    key={obj.id}
+                    shape={obj as any}
+                    onUpdate={updateObject}
+                    isSelected={obj.id === selectedId}
+                    onSelect={() => setSelectedId(obj.id)}
+                  />
+                );
+              }
+            })}
 
           {/* Render cursors */}
           {cursors.map((cursor) => (
@@ -230,6 +256,8 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
         </Layer>
       </Stage>
 
+      <AICommandInput boardId={boardId} user={user} objects={objects} />
+
       <div style={styles.instructions}>
         <p><strong>Controls:</strong></p>
         <p>• Click tools to select</p>
@@ -237,6 +265,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
         <p>• Drag to move (Select tool)</p>
         <p>• Scroll to zoom</p>
         <p>• Double-click sticky to edit</p>
+        <p>• Type AI commands below</p>
       </div>
     </div>
   );

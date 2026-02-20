@@ -5,7 +5,7 @@ import { useAuth } from './hooks/useAuth';
 import { Auth } from './components/Auth';
 import { Board } from './components/Board';
 
-const BOARD_ID = 'demo-board-1'; // Default board for MVP
+const BOARD_ID = 'demo-board-1'; 
 
 function App() {
   const { user, loading } = useAuth();
