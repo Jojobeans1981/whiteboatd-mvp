@@ -95,7 +95,7 @@ The system prompt instructs the AI on:
 
 The prompt was iterated to include specific layout templates after initial testing showed the AI placing objects randomly without spatial consistency.
 
-### Tool Definitions (10 tools)
+### Tool Definitions (12 tools)
 
 | Tool | Category | Purpose |
 |------|----------|---------|
@@ -108,6 +108,8 @@ The prompt was iterated to include specific layout templates after initial testi
 | `resizeObject` | Manipulation | Change width/height/radius by ID |
 | `updateText` | Manipulation | Update sticky text or frame label by ID |
 | `changeColor` | Manipulation | Recolor existing object by ID |
+| `deleteObject` | Deletion | Remove a single object from the board by ID |
+| `clearBoard` | Deletion | Delete all objects on the board (clear/reset) |
 | `getBoardState` | Query | Return current board objects for context |
 
 **Design decisions:**
@@ -279,7 +281,7 @@ For a demo/MVP with moderate usage, these limits are sufficient. A production de
   | "Create SWOT"    |--------->|                    |         |                  |
   |                  |          | 1. Parse command    |         |                  |
   |                  |          | 2. Send to Gemini   |         |                  |
-  |                  |          |    with 10 tools     |         |                  |
+  |                  |          |    with 12 tools     |         |                  |
   |                  |          | 3. Process tool     |         |                  |
   |                  |          |    calls in loop    |         |                  |
   |                  |  JSON    | 4. Return operations|         |                  |

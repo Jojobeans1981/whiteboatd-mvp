@@ -20,7 +20,12 @@ interface UpdateOperation {
   data: Record<string, any>;
 }
 
-type Operation = CreateOperation | UpdateOperation;
+interface DeleteOperation {
+  action: 'delete';
+  objectId: string;
+}
+
+type Operation = CreateOperation | UpdateOperation | DeleteOperation;
 
 // --- Gemini tool (function) declarations ---
 const TOOL_DECLARATIONS = [
@@ -153,6 +158,25 @@ const TOOL_DECLARATIONS = [
         fontSize: { type: SchemaType.NUMBER, description: 'Font size in pixels, default 24' },
       },
       required: ['x', 'y', 'text', 'color'],
+    },
+  },
+  {
+    name: 'deleteObject',
+    description: 'Delete an existing object from the board by its ID.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        objectId: { type: SchemaType.STRING, description: 'ID of the object to delete' },
+      },
+      required: ['objectId'],
+    },
+  },
+  {
+    name: 'clearBoard',
+    description: 'Delete all objects from the board. Use when the user asks to clear, reset, or start fresh.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {},
     },
   },
   {
@@ -364,6 +388,24 @@ function processToolCall(
           objectId: input.objectId,
           data: { color: input.color, updatedAt: now },
         }],
+      };
+    }
+
+    case 'deleteObject': {
+      return {
+        message: `Deleted object ${input.objectId}`,
+        operations: [{ action: 'delete' as const, objectId: input.objectId }],
+      };
+    }
+
+    case 'clearBoard': {
+      const ops: Operation[] = boardState.map((obj) => ({
+        action: 'delete' as const,
+        objectId: obj.id,
+      }));
+      return {
+        message: `Cleared board (${boardState.length} objects deleted)`,
+        operations: ops,
       };
     }
 

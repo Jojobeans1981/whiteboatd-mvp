@@ -273,7 +273,7 @@ service cloud.firestore {
 **Model**: Google Gemini 2.5 Flash (free tier)
 **Architecture**: Vercel Serverless Function + Gemini Function Calling + Client-side Firestore writes
 
-**10 AI Tools**: createStickyNote, createShape, createFrame, createConnector, createText, moveObject, resizeObject, updateText, changeColor, getBoardState
+**12 AI Tools**: createStickyNote, createShape, createFrame, createConnector, createText, moveObject, resizeObject, updateText, changeColor, deleteObject, clearBoard, getBoardState
 
 **Observability**: LangSmith tracing via `traceable` wrapper — traces input, output, latency, and errors for every AI request
 
@@ -282,6 +282,7 @@ service cloud.firestore {
 - Complex: "Create a SWOT analysis" (generates 4 frames + 4 stickies in 2x2 grid)
 - Layout: "Create a retrospective board", "Create a user journey map"
 - Manipulation: "Change color of [object]", "Move [object]", "Resize [object]"
+- Deletion: "Delete the red sticky note", "Clear the board", "Remove all objects"
 
 **Testing Instructions**:
 1. Sign in and look for the AI input bar at the bottom center of the screen
@@ -304,7 +305,7 @@ service cloud.firestore {
 - ✅ Responsive design (works on mobile)
 - ✅ Clean, professional UI
 - ✅ Delete objects (select + Delete/Backspace key)
-- ✅ AI Board Agent with 10 tools and multi-turn function calling
+- ✅ AI Board Agent with 12 tools and multi-turn function calling
 - ✅ Frames (labeled containers for grouping)
 - ✅ Connectors (arrows between objects)
 - ✅ Standalone text objects (T tool — no background, configurable font size)
@@ -346,7 +347,7 @@ This MVP successfully demonstrates:
 2. **Multiplayer presence** with cursor tracking
 3. **Production-ready deployment** on Vercel
 4. **Secure authentication** via Firebase
-5. **AI Board Agent** with 10 tools, multi-turn function calling, and LangSmith observability
+5. **AI Board Agent** with 12 tools, multi-turn function calling, and LangSmith observability
 6. **Object manipulation** including resize handles, delete, and standalone text objects
 
 All 9 MVP requirements met and tested. AI Board Agent fully operational with Google Gemini free tier.

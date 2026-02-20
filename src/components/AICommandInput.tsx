@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { BoardObject, User } from '../types';
 
@@ -17,7 +17,12 @@ interface UpdateOperation {
   data: Record<string, any>;
 }
 
-type Operation = CreateOperation | UpdateOperation;
+interface DeleteOperation {
+  action: 'delete';
+  objectId: string;
+}
+
+type Operation = CreateOperation | UpdateOperation | DeleteOperation;
 
 interface AICommandInputProps {
   boardId: string;
@@ -39,6 +44,9 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
       } else if (op.action === 'update') {
         const objectRef = doc(db, 'boards', boardId, 'objects', op.objectId);
         await updateDoc(objectRef, op.data);
+      } else if (op.action === 'delete') {
+        const objectRef = doc(db, 'boards', boardId, 'objects', op.objectId);
+        await deleteDoc(objectRef);
       }
     }
   };
