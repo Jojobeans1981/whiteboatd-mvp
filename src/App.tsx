@@ -10,7 +10,7 @@ import { LandingPage } from './components/LandingPage';
 
 function getBoardIdFromURL(): string | null {
   const params = new URLSearchParams(window.location.search);
-  return params.get('board') || null;
+  return params.get('board');
 }
 
 function App() {

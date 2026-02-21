@@ -622,80 +622,6 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
 
   return (
     <div style={{ ...styles.container, background: theme.canvasBg }}>
-      <Toolbar
-        selectedTool={selectedTool}
-        onToolChange={setSelectedTool}
-        selectedColor={selectedColor}
-        onColorChange={setSelectedColor}
-        onExportPNG={handleExportPNG}
-        onExportPDF={handleExportPDF}
-        selectedObject={selectedIds.length > 0 ? objects.find((o) => o.id === selectedIds[0]) || null : null}
-        onUpdateObject={handleUpdateSelectedObject}
-        onAutoGrid={handleAutoGrid}
-        onGroupByColor={handleGroupByColor}
-      />
-
-      {/* Consolidated top-right bar */}
-      <div style={styles.topBar}>
-        {onBackToLanding && (
-          <button
-            style={{
-              ...styles.topBtn,
-              background: theme.surface,
-              color: theme.textSecondary,
-              boxShadow: theme.shadow,
-              ...(hoveredBtn === 'back' ? { background: theme.surfaceHover } : {}),
-            }}
-            onClick={onBackToLanding}
-            onMouseEnter={() => setHoveredBtn('back')}
-            onMouseLeave={() => setHoveredBtn(null)}
-            title="Back to boards"
-          >
-            ← Boards
-          </button>
-        )}
-        <button
-          style={{
-            ...styles.shareBtn,
-            background: theme.accent,
-            ...(hoveredBtn === 'share' ? { background: theme.accentHover } : {}),
-          }}
-          onClick={handleShareLink}
-          onMouseEnter={() => setHoveredBtn('share')}
-          onMouseLeave={() => setHoveredBtn(null)}
-          title="Copy share link"
-        >
-          Share
-        </button>
-        <button
-          style={{
-            ...styles.themeBtn,
-            background: theme.surface,
-            color: theme.textSecondary,
-            boxShadow: theme.shadow,
-            ...(hoveredBtn === 'theme' ? { background: theme.surfaceHover } : {}),
-          }}
-          onClick={toggleTheme}
-          onMouseEnter={() => setHoveredBtn('theme')}
-          onMouseLeave={() => setHoveredBtn(null)}
-          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {isDark ? '\u2600' : '\u263D'}
-        </button>
-        <PresenceIndicator onlineUsers={onlineUsers} />
-        <UserBadge user={user} />
-      </div>
-
-      {showCopiedToast && (
-        <div style={{ ...styles.toast, background: theme.toastBg, color: theme.toastText }}>Link copied!</div>
-      )}
-
-      {connectorFrom && (
-        <div style={{ ...styles.connectorHint, background: theme.accent, color: 'white' }}>
-          Click target object to connect (Esc to cancel)
-        </div>
-      )}
-
       <Stage
         ref={stageRef}
         width={window.innerWidth}
@@ -801,6 +727,80 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
           ))}
         </Layer>
       </Stage>
+
+      <Toolbar
+        selectedTool={selectedTool}
+        onToolChange={setSelectedTool}
+        selectedColor={selectedColor}
+        onColorChange={setSelectedColor}
+        onExportPNG={handleExportPNG}
+        onExportPDF={handleExportPDF}
+        selectedObject={selectedIds.length > 0 ? objects.find((o) => o.id === selectedIds[0]) || null : null}
+        onUpdateObject={handleUpdateSelectedObject}
+        onAutoGrid={handleAutoGrid}
+        onGroupByColor={handleGroupByColor}
+      />
+
+      {/* Top-right bar */}
+      <div style={styles.topBar}>
+        {onBackToLanding && (
+          <button
+            style={{
+              ...styles.topBtn,
+              background: theme.surface,
+              color: theme.textSecondary,
+              boxShadow: theme.shadow,
+              ...(hoveredBtn === 'back' ? { background: theme.surfaceHover } : {}),
+            }}
+            onClick={onBackToLanding}
+            onMouseEnter={() => setHoveredBtn('back')}
+            onMouseLeave={() => setHoveredBtn(null)}
+            title="Back to boards"
+          >
+            ← Boards
+          </button>
+        )}
+        <button
+          style={{
+            ...styles.shareBtn,
+            background: theme.accent,
+            ...(hoveredBtn === 'share' ? { background: theme.accentHover } : {}),
+          }}
+          onClick={handleShareLink}
+          onMouseEnter={() => setHoveredBtn('share')}
+          onMouseLeave={() => setHoveredBtn(null)}
+          title="Copy share link"
+        >
+          Share
+        </button>
+        <button
+          style={{
+            ...styles.themeBtn,
+            background: theme.surface,
+            color: theme.textSecondary,
+            boxShadow: theme.shadow,
+            ...(hoveredBtn === 'theme' ? { background: theme.surfaceHover } : {}),
+          }}
+          onClick={toggleTheme}
+          onMouseEnter={() => setHoveredBtn('theme')}
+          onMouseLeave={() => setHoveredBtn(null)}
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {isDark ? '\u2600' : '\u263D'}
+        </button>
+        <PresenceIndicator onlineUsers={onlineUsers} />
+        <UserBadge user={user} />
+      </div>
+
+      {showCopiedToast && (
+        <div style={{ ...styles.toast, background: theme.toastBg, color: theme.toastText }}>Link copied!</div>
+      )}
+
+      {connectorFrom && (
+        <div style={{ ...styles.connectorHint, background: theme.accent, color: 'white' }}>
+          Click target object to connect (Esc to cancel)
+        </div>
+      )}
 
       {editingObject && (
         <InlineTextEditor
