@@ -34,11 +34,11 @@ export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSel
         });
       }}
     >
-      {/* Frame label above the rectangle */}
+      {/* Frame label inside the rectangle */}
       <Text
         text={frame.label || 'Frame'}
-        x={4}
-        y={-24}
+        x={8}
+        y={8}
         fontSize={frame.fontSize || 16}
         fontStyle="bold"
         fill={frame.color}
