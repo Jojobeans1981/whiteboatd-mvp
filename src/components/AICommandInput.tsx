@@ -44,7 +44,7 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
         return setDoc(doc(db, 'boards', boardId, 'objects', op.id), op.data);
       } else if (op.action === 'update') {
         return updateDoc(doc(db, 'boards', boardId, 'objects', op.objectId), op.data);
-      } else if (op.action === 'delete') {
+      } else {
         return deleteDoc(doc(db, 'boards', boardId, 'objects', op.objectId));
       }
     }));

@@ -262,7 +262,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     });
   };
 
-  const updateObject = async (id: string, updates: Partial<BoardObject>) => {
+  const updateObject = useCallback(async (id: string, updates: Partial<BoardObject>) => {
     const current = objects.find((o) => o.id === id);
     if (current) {
       pushAction({
@@ -274,9 +274,9 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     }
     const objectRef = doc(db, 'boards', boardId, 'objects', id);
     await updateDoc(objectRef, updates);
-  };
+  }, [objects, boardId, pushAction]);
 
-  const deleteObject = async (id: string) => {
+  const deleteObject = useCallback(async (id: string) => {
     const current = objects.find((o) => o.id === id);
     if (current) {
       pushAction({
@@ -290,7 +290,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     const objectRef = doc(db, 'boards', boardId, 'objects', id);
     await deleteDoc(objectRef);
     setSelectedIds((prev) => prev.filter((sid) => sid !== id));
-  };
+  }, [objects, boardId, pushAction]);
 
   // Attach Transformer to selected nodes (multi-select)
   useEffect(() => {
@@ -401,7 +401,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
       }
     }
     setEditingObject(null);
-  }, [editingObject, objects, boardId]);
+  }, [editingObject, objects, updateObject]);
 
   // Export handlers
   const handleExportPNG = useCallback(() => {
@@ -448,7 +448,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     if (selectedIds.length > 0) {
       selectedIds.forEach((id) => updateObject(id, updates));
     }
-  }, [selectedIds, boardId]);
+  }, [selectedIds, updateObject]);
 
   // Organize: auto-grid layout
   const handleAutoGrid = useCallback(async () => {
@@ -456,7 +456,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     await Promise.all(
       moves.map((m) => updateObject(m.id, { x: m.x, y: m.y, updatedAt: Date.now() }))
     );
-  }, [objects, boardId]);
+  }, [objects, updateObject]);
 
   // Organize: group by color
   const handleGroupByColor = useCallback(async () => {
@@ -464,7 +464,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     await Promise.all(
       moves.map((m) => updateObject(m.id, { x: m.x, y: m.y, updatedAt: Date.now() }))
     );
-  }, [objects, boardId]);
+  }, [objects, updateObject]);
 
   // Create connector between two objects
   const createConnector = useCallback(async (fromId: string, toId: string) => {
@@ -618,7 +618,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds, connectorFrom, boardId, objects, undo, redo, pushAction, user.uid]);
+  }, [selectedIds, connectorFrom, boardId, objects, undo, redo, pushAction, user.uid, deleteObject]);
 
   return (
     <div style={{ ...styles.container, background: theme.canvasBg }}>
