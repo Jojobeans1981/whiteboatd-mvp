@@ -60,10 +60,11 @@ All 9 requirements from the 24-hour gate have been implemented and tested:
 - **Timeout**: User marked offline after 30s of inactivity
 
 #### 8. ✅ User authentication
-- **Provider**: Google OAuth via Firebase Auth
-- **Flow**: Click "Sign in with Google" → OAuth consent → Access granted
+- **Providers**: Google OAuth + Email/Password via Firebase Auth
+- **Flow**: Email/password sign-up/sign-in or Google OAuth popup
 - **Security**: Firestore rules require authentication
 - **Session**: Persistent across refreshes
+- **Profile**: Auto-sets displayName from email prefix on signup; avatar fallback for non-Google users
 
 #### 9. ✅ Deployed and publicly accessible
 - **Platform**: Vercel (serverless)
@@ -77,17 +78,17 @@ All 9 requirements from the 24-hour gate have been implemented and tested:
 
 **Step 1: Initial Access**
 1. Visit deployed URL: <https://whiteboatd-mvp-gruk.vercel.app/>
-2. Click "Sign in with Google"
-3. Grant permissions
-4. You should see an empty whiteboard with toolbar
+2. Sign in with email/password (create account) or click "Continue with Google"
+3. You'll see the Landing Page — click "Create New Board"
+4. You should see the whiteboard with toolbar at top-center and controls at top-right
 
 **Step 2: Create Objects**
-1. Click the 📝 (sticky note) button
+1. Click the 📝 (Note) button in the toolbar
 2. Click anywhere on the canvas
 3. A yellow sticky note appears with placeholder text
-4. Double-click the sticky note
-5. Enter new text in the prompt
-6. Text updates instantly
+4. Double-click the sticky note to edit inline (no browser prompt — in-place textarea)
+5. Type new text, press Ctrl+Enter to save or Escape to cancel
+6. Text updates instantly across all connected users
 
 **Step 3: Test Shapes**
 1. Click the ▭ (rectangle) button
@@ -99,12 +100,12 @@ All 9 requirements from the 24-hour gate have been implemented and tested:
 
 **Step 4: Test Multiplayer (CRITICAL)**
 1. Open a new browser window (or incognito mode)
-2. Visit the same URL
-3. Sign in (can use same or different Google account)
+2. Visit the same board URL (use the Share button to copy the link)
+3. Sign in (can use same or different account — email/password or Google)
 4. **Observe cursor sync**: Move mouse in Window A, see cursor in Window B
 5. **Test object sync**: Create sticky in Window A, appears in Window B instantly
 6. **Test movement sync**: Drag object in Window A, see it move in Window B
-7. **Check presence**: Top-right shows "● 2 online" with both usernames
+7. **Check presence**: Click the "N online" indicator in the top-right to see user list
 
 **Step 5: Test Pan/Zoom**
 1. With "Select" tool active (↖️ button), drag the canvas background
@@ -113,7 +114,14 @@ All 9 requirements from the 24-hour gate have been implemented and tested:
 4. Zoom maintains center point
 5. All sync'd users see the same objects (not same viewport)
 
-**Step 6: Stress Test**
+**Step 6: Test Organize & Dark Mode**
+1. Create 5+ sticky notes in different colors
+2. Click "Grid" in the toolbar — objects snap into a neat grid
+3. Click "Group" — objects rearrange into columns by color
+4. Click the sun/moon toggle in the top bar — dark mode activates
+5. All UI elements adapt to dark theme; preference persists on refresh
+
+**Step 7: Stress Test**
 1. Create 10+ sticky notes rapidly
 2. Drag them around quickly
 3. Verify no lag, no data loss
@@ -208,7 +216,7 @@ service cloud.firestore {
 ```
 
 **Authentication**:
-- Google OAuth 2.0
+- Google OAuth 2.0 + Email/Password
 - Firebase session tokens
 - Automatic token refresh
 - Secure session management
@@ -231,7 +239,9 @@ service cloud.firestore {
 - `src/components/TextObject.tsx` - Standalone text object renderer
 - `src/hooks/useBoardObjects.ts` - Real-time object sync
 - `src/lib/firebase.ts` - Firebase configuration
-- `api/ai.ts` - AI agent serverless function (Gemini + 12 tools, ~540 lines)
+- `api/ai.ts` - AI agent serverless function (Gemini + 14 tools, ~590 lines)
+- `src/contexts/ThemeContext.tsx` - Dark/light theme context with 18 color tokens
+- `src/lib/layoutUtils.ts` - Auto-grid and group-by-color layout algorithms
 - `AI_DEVELOPMENT_LOG.md` - Full AI development documentation
 
 **Commit History**:
@@ -271,7 +281,7 @@ service cloud.firestore {
 **Architecture**: Vercel Serverless Function + Gemini Function Calling + Client-side Firestore writes
 **Rate Limit Resilience**: Automatic model fallback chain (2.5 → 2.0 → 1.5 Flash) — if one model is rate-limited, the next is tried automatically
 
-**12 AI Tools**: createStickyNote, createShape, createFrame, createConnector, createText, moveObject, resizeObject, updateText, changeColor, deleteObject, clearBoard, getBoardState
+**14 AI Tools**: createStickyNote, createShape, createFrame, createConnector, createText, moveObject, resizeObject, updateText, changeColor, deleteObject, clearBoard, getBoardState, changeFontSize, organizeBoard
 
 **Observability**: LangSmith tracing via `traceable` wrapper — traces input, output, latency, and errors for every AI request
 
@@ -279,15 +289,19 @@ service cloud.firestore {
 - Simple: "Create a yellow sticky note", "Create a blue circle"
 - Complex: "Create a SWOT analysis" (generates 4 frames + 4 stickies in 2x2 grid)
 - Layout: "Create a retrospective board", "Create a user journey map"
-- Manipulation: "Change color of [object]", "Move [object]", "Resize [object]"
+- Manipulation: "Change color of [object]", "Move [object]", "Resize [object]", "Make the text bigger"
+- Organization: "Organize my board", "Group stickies by color", "Arrange everything in a grid"
 - Deletion: "Delete the red sticky note", "Clear the board", "Remove all objects"
 
 **Testing Instructions**:
+
 1. Sign in and look for the AI input bar at the bottom center of the screen
 2. Type "Create a SWOT analysis" and click Send
 3. Wait for the AI to process (~3-5 seconds)
 4. 4 labeled frames + 4 starter sticky notes appear in a 2x2 grid
-5. Open a second browser tab - AI-created objects sync instantly
+5. Try "organize my board" or "group stickies by color" to test layout tools
+6. Try "make the text bigger on [object]" to test font size control
+7. Open a second browser tab — AI-created objects sync instantly
 
 **AI Development Log**: See `AI_DEVELOPMENT_LOG.md` for full development documentation including architecture decisions, prompt engineering, cost analysis, and lessons learned.
 
@@ -296,29 +310,37 @@ service cloud.firestore {
 ### ✨ Bonus Features (Beyond MVP)
 
 - ✅ Color picker with 8 colors
-- ✅ Visual feedback (selection highlighting, shadows)
-- ✅ Instructions panel (bottom-left)
-- ✅ User avatar display (if available from Google)
+- ✅ Visual feedback (selection highlighting, shadows, hover states)
+- ✅ Collapsible help panel with keyboard shortcuts ("?" button, bottom-left)
+- ✅ User avatar display (Google photo or initial-letter fallback)
 - ✅ Smooth animations and transitions
 - ✅ Responsive design (works on mobile)
-- ✅ Clean, professional UI
+- ✅ Clean, professional UI with consolidated top bar
 - ✅ Delete objects (select + Delete/Backspace key)
-- ✅ AI Board Agent with 12 tools and multi-turn function calling
+- ✅ AI Board Agent with 14 tools and multi-turn function calling
 - ✅ Frames (labeled containers for grouping)
 - ✅ Connectors (arrows between objects)
 - ✅ Standalone text objects (T tool — no background, configurable font size)
 - ✅ Object resize handles (drag corners/edges to resize sticky notes, shapes, and frames)
 - ✅ LangSmith observability (traces AI agent requests, latency, errors)
 - ✅ Model fallback chain (gemini-2.5-flash → 2.0-flash → 1.5-flash for rate limit resilience)
+- ✅ Inline text editing (double-click objects to edit in-place, no browser prompts)
+- ✅ Copy/Paste (Ctrl+C/V) and Undo/Redo (Ctrl+Z/Y) with 50-action history
+- ✅ Export to PNG (2x resolution) and PDF (landscape)
+- ✅ Right-click context menu (Edit, Duplicate, Delete) with viewport bounds checking
+- ✅ Board sharing via URL + landing page with create/join board flow
+- ✅ Email/password authentication alongside Google OAuth
+- ✅ Branded login page with tagline "Where ideas meet the wall."
+- ✅ Dark mode with theme toggle (persists to localStorage)
+- ✅ Auto-organize tools: Grid layout and Group-by-color (toolbar + AI)
 
 ---
 
 ### 🐛 Known Issues & Limitations
 
 **By Design** (MVP scope):
-1. Text editing uses browser prompt (simple but functional)
-2. Single board for all users (multi-room coming in Phase 2)
-3. No undo/redo (scheduled for iteration)
+1. All authenticated users can access all boards (no per-board permissions yet)
+2. Undo/redo tracks individual operations (no batch undo for organize actions)
 
 **No Critical Bugs Identified**:
 - Tested across Chrome, Firefox, Safari
@@ -346,8 +368,10 @@ This MVP successfully demonstrates:
 2. **Multiplayer presence** with cursor tracking
 3. **Production-ready deployment** on Vercel
 4. **Secure authentication** via Firebase
-5. **AI Board Agent** with 12 tools, multi-turn function calling, and LangSmith observability
-6. **Object manipulation** including resize handles, delete, and standalone text objects
+5. **AI Board Agent** with 14 tools, multi-turn function calling, and LangSmith observability
+6. **Object manipulation** including resize handles, inline editing, copy/paste, undo/redo
+7. **Board management** with sharing, landing page, and multi-board support
+8. **Professional UI** with dark mode, email/password auth, organize tools, and branded login
 
 All 9 MVP requirements met and tested. AI Board Agent fully operational with Google Gemini free tier.
 

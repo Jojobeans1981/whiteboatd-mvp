@@ -6,7 +6,8 @@ interface TextObjectProps {
   textObj: BoardObject;
   onUpdate: (id: string, updates: Partial<BoardObject>) => void;
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (e: any) => void;
+  isConnectorSource?: boolean;
   onStartEditing?: (obj: BoardObject) => void;
   nodeRef?: (node: any) => void;
   onTransformEnd?: () => void;
@@ -17,6 +18,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
   onUpdate,
   isSelected,
   onSelect,
+  isConnectorSource,
   onStartEditing,
   nodeRef,
   onTransformEnd,
@@ -32,13 +34,14 @@ export const TextObject: React.FC<TextObjectProps> = ({
     }
   };
 
-  const fontSize = (textObj as any).fontSize || 24;
+  const fontSize = textObj.fontSize || 24;
 
   return (
     <Group
       ref={nodeRef}
       x={textObj.x}
       y={textObj.y}
+      rotation={textObj.rotation || 0}
       draggable
       onDragEnd={(e) => {
         onUpdate(textObj.id, {

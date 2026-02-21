@@ -8,7 +8,8 @@ interface StickyNoteProps {
   sticky: StickyNoteType;
   onUpdate: (id: string, updates: Partial<StickyNoteType>) => void;
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (e: any) => void;
+  isConnectorSource?: boolean;
   nodeRef?: (node: any) => void;
   onTransformEnd?: () => void;
   onStartEditing?: (obj: StickyNoteType) => void;
@@ -19,6 +20,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
   onUpdate,
   isSelected,
   onSelect,
+  isConnectorSource,
   nodeRef,
   onTransformEnd,
   onStartEditing,
@@ -39,6 +41,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
       ref={nodeRef}
       x={sticky.x}
       y={sticky.y}
+      rotation={sticky.rotation || 0}
       draggable
       onDragEnd={(e) => {
         onUpdate(sticky.id, {
@@ -63,8 +66,8 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
         shadowOffsetX={2}
         shadowOffsetY={2}
         cornerRadius={5}
-        stroke={isSelected ? '#2196f3' : undefined}
-        strokeWidth={isSelected ? 3 : 0}
+        stroke={isConnectorSource ? '#ff9800' : isSelected ? '#2196f3' : undefined}
+        strokeWidth={isConnectorSource || isSelected ? 3 : 0}
       />
       
       <Text
@@ -73,7 +76,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
         height={sticky.height - 20}
         x={10}
         y={10}
-        fontSize={14}
+        fontSize={sticky.fontSize || 14}
         fill="#333"
         wrap="word"
         align="left"

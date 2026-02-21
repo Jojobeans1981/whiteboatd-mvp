@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { BoardObject, User } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 type AIStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -34,6 +35,7 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
   const [inputValue, setInputValue] = useState('');
   const [status, setStatus] = useState<AIStatus>('idle');
   const [message, setMessage] = useState('');
+  const { theme } = useTheme();
 
   // Execute operations returned by the AI endpoint against Firestore (in parallel)
   const executeOperations = async (operations: Operation[]) => {
@@ -97,16 +99,17 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
   return (
     <div style={styles.container}>
       <form onSubmit={handleSubmit} style={styles.form}>
-        <div style={styles.inputRow}>
+        <div style={{ ...styles.inputRow, background: theme.surface, boxShadow: theme.shadowHeavy }}>
           <span style={styles.icon}>AI</span>
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder='Ask AI to help... (e.g., "Create a SWOT analysis")'
+            placeholder='Ask AI... (e.g. "SWOT analysis")'
             disabled={status === 'loading'}
             style={{
               ...styles.input,
+              color: theme.text,
               ...(status === 'loading' ? styles.inputDisabled : {}),
             }}
           />

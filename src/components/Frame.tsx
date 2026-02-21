@@ -6,12 +6,13 @@ interface FrameProps {
   frame: BoardObject;
   onUpdate: (id: string, updates: Partial<BoardObject>) => void;
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (e: any) => void;
+  isConnectorSource?: boolean;
   nodeRef?: (node: any) => void;
   onTransformEnd?: () => void;
 }
 
-export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSelect, nodeRef, onTransformEnd }) => {
+export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSelect, isConnectorSource, nodeRef, onTransformEnd }) => {
   // Parse a semi-transparent version of the color for the fill
   const fillColor = frame.color + '15';
 
@@ -20,6 +21,7 @@ export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSel
       ref={nodeRef}
       x={frame.x}
       y={frame.y}
+      rotation={frame.rotation || 0}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -37,7 +39,7 @@ export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSel
         text={frame.label || 'Frame'}
         x={4}
         y={-24}
-        fontSize={16}
+        fontSize={frame.fontSize || 16}
         fontStyle="bold"
         fill={frame.color}
       />
@@ -47,8 +49,8 @@ export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSel
         width={frame.width || 400}
         height={frame.height || 350}
         fill={fillColor}
-        stroke={frame.color}
-        strokeWidth={isSelected ? 3 : 2}
+        stroke={isConnectorSource ? '#ff9800' : frame.color}
+        strokeWidth={isConnectorSource ? 3 : isSelected ? 3 : 2}
         dash={[10, 5]}
         cornerRadius={8}
       />

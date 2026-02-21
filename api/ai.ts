@@ -180,6 +180,32 @@ const TOOL_DECLARATIONS = [
     },
   },
   {
+    name: 'changeFontSize',
+    description: 'Change the font size of a sticky note, text object, or frame.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        objectId: { type: SchemaType.STRING, description: 'ID of the object' },
+        fontSize: { type: SchemaType.NUMBER, description: 'New font size in pixels (8-72)' },
+      },
+      required: ['objectId', 'fontSize'],
+    },
+  },
+  {
+    name: 'organizeBoard',
+    description: 'Automatically arrange all objects on the board. Supports two modes: "grid" arranges all objects in a neat grid sorted by creation time; "groupByColor" groups objects by their color into columns.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        mode: {
+          type: SchemaType.STRING,
+          description: 'Layout mode: "grid" or "groupByColor"',
+        },
+      },
+      required: ['mode'],
+    },
+  },
+  {
     name: 'getBoardState',
     description: 'Get the current state of all objects on the board. Use this to understand what exists before making changes.',
     parameters: {
@@ -205,6 +231,9 @@ Rules:
 - For user journey maps: create horizontal frames for each stage (Awareness, Consideration, Decision, Onboarding, Retention).
 - When arranging in a grid, use consistent spacing (e.g., 220px between sticky notes).
 - The board state is provided so you can reference existing object IDs for move/resize/update operations.
+- Use organizeBoard with mode "grid" when the user asks to organize, arrange, tidy, or clean up the board.
+- Use organizeBoard with mode "groupByColor" when the user asks to group, cluster, or categorize by color.
+- Use changeFontSize to modify text size on stickies, text objects, or frames (range 8-72).
 - After completing all tool calls, respond with a brief summary of what you did.`;
 
 // --- Board object interface (for board state context) ---
@@ -221,6 +250,8 @@ interface BoardObject {
   fromId?: string;
   toId?: string;
   color: string;
+  fontSize?: number;
+  createdAt?: number;
 }
 
 // --- Process a tool call into an operation (no Firestore writes) ---
@@ -389,6 +420,75 @@ function processToolCall(
           objectId: input.objectId,
           data: { color: input.color, updatedAt: now },
         }],
+      };
+    }
+
+    case 'changeFontSize': {
+      const size = Math.max(8, Math.min(72, input.fontSize));
+      return {
+        message: `Changed font size of ${input.objectId} to ${size}px`,
+        operations: [{
+          action: 'update',
+          objectId: input.objectId,
+          data: { fontSize: size, updatedAt: now },
+        }],
+      };
+    }
+
+    case 'organizeBoard': {
+      const placeable = boardState.filter((o) => o.type !== 'connector');
+      if (placeable.length === 0) {
+        return { message: 'No objects to organize.', operations: [] };
+      }
+
+      let positions: Array<{ id: string; x: number; y: number }>;
+
+      if (input.mode === 'groupByColor') {
+        const groups = new Map<string, typeof placeable>();
+        for (const obj of placeable) {
+          const list = groups.get(obj.color) || [];
+          list.push(obj);
+          groups.set(obj.color, list);
+        }
+        positions = [];
+        let columnX = 100;
+        for (const [, group] of [...groups.entries()].sort((a, b) => b[1].length - a[1].length)) {
+          let rowY = 100;
+          let maxW = 0;
+          for (const obj of group) {
+            const w = obj.width || (obj.radius ? obj.radius * 2 : 150);
+            const h = obj.height || (obj.radius ? obj.radius * 2 : 100);
+            positions.push({ id: obj.id, x: columnX, y: rowY });
+            rowY += h + 30;
+            maxW = Math.max(maxW, w);
+          }
+          columnX += maxW + 60;
+        }
+      } else {
+        const sorted = [...placeable].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        const cols = Math.min(6, Math.ceil(Math.sqrt(sorted.length)));
+        positions = [];
+        let cx = 100, cy = 100, col = 0, rowH = 0;
+        for (const obj of sorted) {
+          const w = obj.width || (obj.radius ? obj.radius * 2 : 150);
+          const h = obj.height || (obj.radius ? obj.radius * 2 : 100);
+          if (col >= cols) { col = 0; cx = 100; cy += rowH + 30; rowH = 0; }
+          positions.push({ id: obj.id, x: cx, y: cy });
+          cx += w + 30;
+          rowH = Math.max(rowH, h);
+          col++;
+        }
+      }
+
+      const ops: Operation[] = positions.map((p) => ({
+        action: 'update' as const,
+        objectId: p.id,
+        data: { x: p.x, y: p.y, updatedAt: now },
+      }));
+
+      return {
+        message: `Organized ${positions.length} objects in ${input.mode === 'groupByColor' ? 'color groups' : 'a grid'}.`,
+        operations: ops,
       };
     }
 

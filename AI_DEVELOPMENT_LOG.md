@@ -392,3 +392,82 @@ for (const modelName of MODELS) {
 ```
 
 **Why this matters:** During demo/evaluation, rapid testing of AI commands would frequently hit the 10 RPM limit and block the agent. The fallback chain makes this nearly invisible to the user.
+
+### Inline Text Editing
+
+Replaced browser `prompt()` dialogs with an inline `<textarea>` overlay for editing sticky notes, text objects, and frame labels.
+
+**Implementation:**
+- `InlineTextEditor.tsx` renders a positioned `<textarea>` over the object being edited
+- Auto-focuses and selects all text on open
+- Save on `Ctrl+Enter` or blur; cancel on `Escape`
+- Coordinates computed from Konva node absolute position + stage container offset
+- Supports different font sizes, colors, and background colors per object type
+
+### Copy/Paste & Undo/Redo
+
+- **Copy/Paste** (`Ctrl+C` / `Ctrl+V`): Stores a clipboard reference of the selected object, paste creates a duplicate offset by 20px
+- **Undo/Redo** (`Ctrl+Z` / `Ctrl+Y`): Custom `useUndoRedo` hook tracks create/update/delete actions with before/after snapshots, max 50 history entries
+
+### Export to PNG & PDF
+
+- **PNG Export**: Uses Konva's `stage.toDataURL({ pixelRatio: 2 })` for high-DPI output
+- **PDF Export**: Dynamically imports `jsPDF`, renders the canvas snapshot into a landscape PDF
+- Both accessible via toolbar buttons
+
+### Right-Click Context Menu
+
+`ContextMenu.tsx` provides Edit / Duplicate / Delete actions on right-click. Features viewport bounds checking to prevent overflow and hover feedback on menu items.
+
+### Board Sharing & Landing Page
+
+- **Landing Page** (`LandingPage.tsx`): Create new boards or join existing ones by ID
+- **URL Routing**: Query parameter `?board={id}` with `pushState` for navigation
+- **Share Button**: Copies board URL to clipboard with toast confirmation
+- Board IDs are auto-generated unique strings
+
+### Font Size & Color Controls
+
+- Toolbar shows font size controls (A- / A+) when a sticky, text, or frame is selected
+- Color swatches update both the selected color and the currently selected object's color
+- Font size range: 8-72px with 2px step increments
+
+### UI/UX Polish & Email/Password Authentication
+
+Complete UI overhaul for professional appearance:
+- **Email/Password Auth**: `createUserWithEmailAndPassword` + `signInWithEmailAndPassword` alongside Google OAuth
+- **Branded Login** (`LoginScreen`): "Whiteboard" title, tagline *"Where ideas meet the wall."*, focus rings, error banners with friendly messages
+- **Consolidated Top Bar**: `[← Boards] [Share] [Theme Toggle] [N online ▾] [Avatar Name | Sign Out]`
+- **Compact Presence Indicator**: Overlapping colored dots + dropdown user list (click to expand)
+- **Collapsible Help Panel**: "?" button at bottom-left with keyboard shortcuts
+- **Hover States**: All interactive elements across Toolbar, top bar, context menu, and landing page
+- **Avatar Fallback**: Colored circle with initial letter for email/password users (no photoURL)
+
+### Dark Mode
+
+Full dark mode implementation with `ThemeContext`:
+- `ThemeProvider` wraps the Board component, providing 18 color tokens (bg, surface, text, accent, etc.)
+- Light and dark theme objects with carefully chosen color palettes
+- Toggle button (sun/moon) in the top bar
+- Theme preference persists to `localStorage`
+- All components themed: Board, Toolbar, PresenceIndicator, ContextMenu, AICommandInput, InlineTextEditor, UserBadge
+
+### Organize/Layout Tools (AI Tools 13 & 14)
+
+Added two layout algorithms and corresponding AI tools:
+
+**UI Buttons** (in Toolbar):
+- **Grid**: Auto-arranges all objects in a neat grid sorted by creation time
+- **Group**: Groups objects by color into columns (largest group leftmost)
+
+**Layout Algorithm** (`src/lib/layoutUtils.ts`):
+- `autoGridLayout()`: Row-aware grid with auto-calculated column count (`Math.min(6, Math.ceil(Math.sqrt(n)))`)
+- `groupByColorLayout()`: Groups by color, stacks vertically within columns, sorts groups by size
+
+**AI Tools** (in `api/ai.ts`):
+- `changeFontSize` (tool #13): Changes font size on stickies/text/frames (range 8-72)
+- `organizeBoard` (tool #14): Auto-arranges objects with mode "grid" or "groupByColor", returns batch of `update` operations
+
+**Total AI tools: 14** (was 12)
+
+Updated system prompt with instructions for organize and font size commands.

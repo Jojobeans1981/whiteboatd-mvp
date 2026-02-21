@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ContextMenuProps {
   x: number;
@@ -18,6 +19,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onClose,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -36,16 +39,56 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     };
   }, [onClose]);
 
+  // Bounds checking: reposition if menu overflows viewport
+  useEffect(() => {
+    if (menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      let adjX = x;
+      let adjY = y;
+      if (x + rect.width > window.innerWidth) {
+        adjX = window.innerWidth - rect.width - 8;
+      }
+      if (y + rect.height > window.innerHeight) {
+        adjY = window.innerHeight - rect.height - 8;
+      }
+      menuRef.current.style.left = `${adjX}px`;
+      menuRef.current.style.top = `${adjY}px`;
+    }
+  }, [x, y]);
+
+  const getItemStyle = (id: string, isDelete?: boolean): React.CSSProperties => ({
+    ...styles.item,
+    color: isDelete ? '#dc2626' : theme.text,
+    ...(hoveredItem === id
+      ? { background: isDelete ? (theme.surface === '#ffffff' ? '#fef2f2' : '#3b1c1c') : theme.surfaceHover }
+      : {}),
+  });
+
   return (
-    <div ref={menuRef} style={{ ...styles.menu, left: x, top: y }}>
-      <button style={styles.item} onClick={onEdit}>
+    <div ref={menuRef} style={{ ...styles.menu, left: x, top: y, background: theme.surface, boxShadow: theme.shadowHeavy }}>
+      <button
+        style={getItemStyle('edit')}
+        onClick={onEdit}
+        onMouseEnter={() => setHoveredItem('edit')}
+        onMouseLeave={() => setHoveredItem(null)}
+      >
         Edit
       </button>
-      <button style={styles.item} onClick={onDuplicate}>
+      <button
+        style={getItemStyle('duplicate')}
+        onClick={onDuplicate}
+        onMouseEnter={() => setHoveredItem('duplicate')}
+        onMouseLeave={() => setHoveredItem(null)}
+      >
         Duplicate
       </button>
-      <div style={styles.divider} />
-      <button style={{ ...styles.item, ...styles.deleteItem }} onClick={onDelete}>
+      <div style={{ ...styles.divider, background: theme.border }} />
+      <button
+        style={getItemStyle('delete', true)}
+        onClick={onDelete}
+        onMouseEnter={() => setHoveredItem('delete')}
+        onMouseLeave={() => setHoveredItem(null)}
+      >
         Delete
       </button>
     </div>
@@ -57,10 +100,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'absolute',
     zIndex: 2000,
     background: 'white',
-    borderRadius: '8px',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+    borderRadius: '10px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.16)',
     padding: '4px 0',
-    minWidth: '140px',
+    minWidth: '150px',
   },
   item: {
     display: 'block',
@@ -71,8 +114,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     textAlign: 'left' as const,
     fontSize: '13px',
     cursor: 'pointer',
-    color: '#333',
-    transition: 'background 0.15s',
+    color: '#1f2937',
+    transition: 'background 0.1s',
   },
   deleteItem: {
     color: '#dc2626',

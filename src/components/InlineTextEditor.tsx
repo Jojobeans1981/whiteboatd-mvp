@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface InlineTextEditorProps {
   x: number;
@@ -26,6 +27,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   onCancel,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -66,7 +68,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         fontSize: `${fontSize}px`,
         color,
         backgroundColor: backgroundColor === 'transparent' ? 'rgba(255,255,255,0.95)' : backgroundColor,
-        border: '2px solid #2196f3',
+        border: `2px solid ${theme.accent}`,
         borderRadius: '4px',
         padding: '8px',
         outline: 'none',
@@ -75,7 +77,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         fontFamily: 'sans-serif',
         lineHeight: '1.4',
         zIndex: 2000,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        boxShadow: theme.shadowHeavy,
         boxSizing: 'border-box',
       }}
     />

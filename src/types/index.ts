@@ -13,6 +13,8 @@ export interface BoardObject {
   fromId?: string;
   toId?: string;
   color: string;
+  fontSize?: number;
+  rotation?: number;
   createdBy: string;
   createdAt: number;
   updatedAt: number;

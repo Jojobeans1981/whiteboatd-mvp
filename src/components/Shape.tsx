@@ -8,7 +8,8 @@ interface ShapeProps {
   shape: ShapeType;
   onUpdate: (id: string, updates: Partial<ShapeType>) => void;
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (e: any) => void;
+  isConnectorSource?: boolean;
   nodeRef?: (node: any) => void;
   onTransformEnd?: () => void;
 }
@@ -18,6 +19,7 @@ export const Shape: React.FC<ShapeProps> = ({
   onUpdate,
   isSelected,
   onSelect,
+  isConnectorSource,
   nodeRef,
   onTransformEnd,
 }) => {
@@ -26,6 +28,7 @@ export const Shape: React.FC<ShapeProps> = ({
       ref={nodeRef}
       x={shape.x}
       y={shape.y}
+      rotation={shape.rotation || 0}
       draggable
       onDragEnd={(e) => {
         onUpdate(shape.id, {
@@ -48,8 +51,8 @@ export const Shape: React.FC<ShapeProps> = ({
           shadowOpacity={isSelected ? 0.3 : 0.2}
           shadowOffsetX={2}
           shadowOffsetY={2}
-          stroke={isSelected ? '#2196f3' : undefined}
-          strokeWidth={isSelected ? 3 : 0}
+          stroke={isConnectorSource ? '#ff9800' : isSelected ? '#2196f3' : undefined}
+          strokeWidth={isConnectorSource || isSelected ? 3 : 0}
         />
       ) : (
         <Circle
@@ -60,8 +63,8 @@ export const Shape: React.FC<ShapeProps> = ({
           shadowOpacity={isSelected ? 0.3 : 0.2}
           shadowOffsetX={2}
           shadowOffsetY={2}
-          stroke={isSelected ? '#2196f3' : undefined}
-          strokeWidth={isSelected ? 3 : 0}
+          stroke={isConnectorSource ? '#ff9800' : isSelected ? '#2196f3' : undefined}
+          strokeWidth={isConnectorSource || isSelected ? 3 : 0}
         />
       )}
     </Group>

@@ -19,8 +19,11 @@ import { ContextMenu } from './ContextMenu';
 import { Toolbar, Tool } from './Toolbar';
 import { PresenceIndicator } from './PresenceIndicator';
 import { AICommandInput } from './AICommandInput';
+import { UserBadge } from './Auth';
 import { BoardObject, User } from '../types';
 import { generateId, getUserColor, getUserDisplayName } from '../lib/utils';
+import { autoGridLayout, groupByColorLayout } from '../lib/layoutUtils';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface EditingState {
   id: string;
@@ -37,22 +40,28 @@ interface EditingState {
 interface BoardProps {
   boardId: string;
   user: User;
+  onBackToLanding?: () => void;
 }
 
-export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
+export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) => {
   const [selectedTool, setSelectedTool] = useState<Tool>('select');
   const [selectedColor, setSelectedColor] = useState('#FFE066');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [connectorFrom, setConnectorFrom] = useState<string | null>(null);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [stageScale, setStageScale] = useState(1);
   
   const [editingObject, setEditingObject] = useState<EditingState | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; objectId: string } | null>(null);
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
+  const { theme, isDark, toggleTheme } = useTheme();
 
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
   const nodeRefs = useRef<Map<string, any>>(new Map());
-  const clipboardRef = useRef<BoardObject | null>(null);
+  const clipboardRef = useRef<BoardObject[] | BoardObject | null>(null);
   const { objects } = useBoardObjects(boardId);
   const { pushAction, undo, redo } = useUndoRedo();
   const cursors = useCursors(boardId, user.uid);
@@ -141,10 +150,11 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
 
     // Click on empty area
     if (e.target === e.target.getStage()) {
-      setSelectedId(null);
+      setSelectedIds([]);
+      setConnectorFrom(null);
 
-      // Create object if a tool is selected
-      if (selectedTool !== 'select') {
+      // Create object if a tool is selected (not connector — connector needs object clicks)
+      if (selectedTool !== 'select' && selectedTool !== 'connector') {
         const stage = e.target.getStage();
         const point = stage.getPointerPosition();
         const x = (point.x - stagePos.x) / stageScale;
@@ -179,12 +189,12 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
         return ref === target || ref === target.parent || ref === target.parent?.parent;
       });
       if (!found) return;
-      setSelectedId(found[0]);
+      setSelectedIds([found[0]]);
       setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, objectId: found[0] });
       return;
     }
 
-    setSelectedId(clickedId);
+    setSelectedIds([clickedId]);
     setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, objectId: clickedId });
   };
 
@@ -231,6 +241,15 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
         text: 'Double-click to edit',
         fontSize: 24,
       };
+    } else if (type === 'frame') {
+      objectData = {
+        ...objectData,
+        type: 'frame',
+        label: 'Frame',
+        width: 400,
+        height: 300,
+        fontSize: 16,
+      };
     }
 
     await setDoc(objectRef, objectData);
@@ -270,23 +289,21 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
     }
     const objectRef = doc(db, 'boards', boardId, 'objects', id);
     await deleteDoc(objectRef);
-    setSelectedId(null);
+    setSelectedIds((prev) => prev.filter((sid) => sid !== id));
   };
 
-  // Attach Transformer to selected node
+  // Attach Transformer to selected nodes (multi-select)
   useEffect(() => {
-    if (selectedId && transformerRef.current) {
-      const node = nodeRefs.current.get(selectedId);
-      if (node) {
-        transformerRef.current.nodes([node]);
-        transformerRef.current.getLayer()?.batchDraw();
-      } else {
-        transformerRef.current.nodes([]);
-      }
+    if (selectedIds.length > 0 && transformerRef.current) {
+      const nodes = selectedIds
+        .map((id) => nodeRefs.current.get(id))
+        .filter(Boolean);
+      transformerRef.current.nodes(nodes);
+      transformerRef.current.getLayer()?.batchDraw();
     } else if (transformerRef.current) {
       transformerRef.current.nodes([]);
     }
-  }, [selectedId, objects]);
+  }, [selectedIds, objects]);
 
   // Handle transform end — sync new dimensions to Firestore
   const handleTransformEnd = (obj: BoardObject) => {
@@ -303,6 +320,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
     const updates: any = {
       x: node.x(),
       y: node.y(),
+      rotation: node.rotation(),
       updatedAt: Date.now(),
     };
 
@@ -345,10 +363,10 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
         width -= 20 * scaleX;
         height -= 20 * scaleY;
         bgColor = obj.color;
-        fontSize = 14 * scaleX;
+        fontSize = (obj.fontSize || 14) * scaleX;
       } else {
         // Text object
-        fontSize = ((obj as any).fontSize || 24) * scaleX;
+        fontSize = (obj.fontSize || 24) * scaleX;
         width = Math.max(200, fontSize * 10) * scaleX;
         height = fontSize * 2;
         textColor = obj.color;
@@ -388,7 +406,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
   // Export handlers
   const handleExportPNG = useCallback(() => {
     if (!stageRef.current) return;
-    setSelectedId(null);
+    setSelectedIds([]);
     setTimeout(() => {
       const dataURL = stageRef.current.toDataURL({ pixelRatio: 2 });
       const link = document.createElement('a');
@@ -402,7 +420,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
 
   const handleExportPDF = useCallback(() => {
     if (!stageRef.current) return;
-    setSelectedId(null);
+    setSelectedIds([]);
     setTimeout(async () => {
       const dataURL = stageRef.current.toDataURL({ pixelRatio: 2 });
       const { jsPDF } = await import('jspdf');
@@ -416,52 +434,149 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
     }, 100);
   }, []);
 
+  // Share board link
+  const handleShareLink = useCallback(() => {
+    const url = window.location.origin + '?board=' + boardId;
+    navigator.clipboard.writeText(url).then(() => {
+      setShowCopiedToast(true);
+      setTimeout(() => setShowCopiedToast(false), 2000);
+    });
+  }, [boardId]);
+
+  // Update selected object from toolbar
+  const handleUpdateSelectedObject = useCallback((updates: Partial<BoardObject>) => {
+    if (selectedIds.length > 0) {
+      selectedIds.forEach((id) => updateObject(id, updates));
+    }
+  }, [selectedIds, boardId]);
+
+  // Organize: auto-grid layout
+  const handleAutoGrid = useCallback(async () => {
+    const moves = autoGridLayout(objects);
+    await Promise.all(
+      moves.map((m) => updateObject(m.id, { x: m.x, y: m.y, updatedAt: Date.now() }))
+    );
+  }, [objects, boardId]);
+
+  // Organize: group by color
+  const handleGroupByColor = useCallback(async () => {
+    const moves = groupByColorLayout(objects);
+    await Promise.all(
+      moves.map((m) => updateObject(m.id, { x: m.x, y: m.y, updatedAt: Date.now() }))
+    );
+  }, [objects, boardId]);
+
+  // Create connector between two objects
+  const createConnector = useCallback(async (fromId: string, toId: string) => {
+    const objectId = generateId();
+    const objectRef = doc(db, 'boards', boardId, 'objects', objectId);
+    const objectData = {
+      type: 'connector' as const,
+      fromId,
+      toId,
+      color: selectedColor,
+      createdBy: user.uid,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    await setDoc(objectRef, objectData);
+    pushAction({
+      type: 'create',
+      objectId,
+      before: null,
+      after: objectData,
+      fullObject: { id: objectId, ...objectData },
+    });
+  }, [boardId, selectedColor, user.uid, pushAction]);
+
+  // Handle object click — supports shift-click multi-select and connector tool
+  const handleObjectSelect = useCallback((objId: string, e: any) => {
+    // Connector tool: two-click flow
+    if (selectedTool === 'connector') {
+      if (!connectorFrom) {
+        setConnectorFrom(objId);
+      } else if (connectorFrom !== objId) {
+        createConnector(connectorFrom, objId);
+        setConnectorFrom(null);
+      }
+      return;
+    }
+
+    // Shift-click: toggle in/out of selection
+    if (e.evt?.shiftKey) {
+      setSelectedIds((prev) =>
+        prev.includes(objId)
+          ? prev.filter((id) => id !== objId)
+          : [...prev, objId]
+      );
+    } else {
+      setSelectedIds([objId]);
+    }
+  }, [selectedTool, connectorFrom, createConnector]);
+
   // Keyboard shortcuts: Delete, Copy, Paste, Undo, Redo
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-      // Delete/Backspace
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
-        e.preventDefault();
-        deleteObject(selectedId);
+      // Escape - cancel connector or deselect
+      if (e.key === 'Escape') {
+        if (connectorFrom) {
+          setConnectorFrom(null);
+        } else {
+          setSelectedIds([]);
+        }
         return;
       }
 
-      // Ctrl+C - Copy
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedId) {
+      // Delete/Backspace
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0) {
         e.preventDefault();
-        const obj = objects.find((o) => o.id === selectedId);
-        if (obj) clipboardRef.current = { ...obj };
+        const toDelete = [...selectedIds];
+        setSelectedIds([]);
+        toDelete.forEach((id) => deleteObject(id));
+        return;
+      }
+
+      // Ctrl+C - Copy (all selected)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedIds.length > 0) {
+        e.preventDefault();
+        const selected = objects.filter((o) => selectedIds.includes(o.id));
+        if (selected.length > 0) clipboardRef.current = selected.map((o) => ({ ...o }));
         return;
       }
 
       // Ctrl+V - Paste
       if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboardRef.current) {
         e.preventDefault();
-        const source = clipboardRef.current;
-        const newId = generateId();
-        const objectRef = doc(db, 'boards', boardId, 'objects', newId);
-        const { id, ...rest } = source;
-        const newObject = {
-          ...rest,
-          x: source.x + 20,
-          y: source.y + 20,
-          createdBy: user.uid,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        setDoc(objectRef, newObject);
-        pushAction({
-          type: 'create',
-          objectId: newId,
-          before: null,
-          after: newObject,
-          fullObject: { id: newId, ...newObject },
-        });
-        clipboardRef.current = { ...source, x: source.x + 20, y: source.y + 20 };
-        setSelectedId(newId);
+        const sources: BoardObject[] = Array.isArray(clipboardRef.current) ? clipboardRef.current : [clipboardRef.current];
+        const newIds: string[] = [];
+        for (const source of sources) {
+          const newId = generateId();
+          const objectRef = doc(db, 'boards', boardId, 'objects', newId);
+          const { id, ...rest } = source;
+          const newObject = {
+            ...rest,
+            x: source.x + 20,
+            y: source.y + 20,
+            createdBy: user.uid,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          setDoc(objectRef, newObject);
+          pushAction({
+            type: 'create',
+            objectId: newId,
+            before: null,
+            after: newObject,
+            fullObject: { id: newId, ...newObject },
+          });
+          newIds.push(newId);
+        }
+        // Offset clipboard for next paste
+        clipboardRef.current = sources.map((s) => ({ ...s, x: s.x + 20, y: s.y + 20 }));
+        setSelectedIds(newIds);
         return;
       }
 
@@ -473,7 +588,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
         const objectRef = doc(db, 'boards', boardId, 'objects', action.objectId);
         if (action.type === 'create') {
           deleteDoc(objectRef);
-          if (selectedId === action.objectId) setSelectedId(null);
+          setSelectedIds((prev) => prev.filter((id) => id !== action.objectId));
         } else if (action.type === 'update' && action.before) {
           updateDoc(objectRef, { ...action.before, updatedAt: Date.now() });
         } else if (action.type === 'delete' && action.fullObject) {
@@ -496,17 +611,17 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
           updateDoc(objectRef, { ...action.after, updatedAt: Date.now() });
         } else if (action.type === 'delete') {
           deleteDoc(objectRef);
-          if (selectedId === action.objectId) setSelectedId(null);
+          setSelectedIds((prev) => prev.filter((id) => id !== action.objectId));
         }
         return;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, boardId, objects, undo, redo, pushAction, user.uid]);
+  }, [selectedIds, connectorFrom, boardId, objects, undo, redo, pushAction, user.uid]);
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, background: theme.canvasBg }}>
       <Toolbar
         selectedTool={selectedTool}
         onToolChange={setSelectedTool}
@@ -514,9 +629,72 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
         onColorChange={setSelectedColor}
         onExportPNG={handleExportPNG}
         onExportPDF={handleExportPDF}
+        selectedObject={selectedIds.length > 0 ? objects.find((o) => o.id === selectedIds[0]) || null : null}
+        onUpdateObject={handleUpdateSelectedObject}
+        onAutoGrid={handleAutoGrid}
+        onGroupByColor={handleGroupByColor}
       />
-      
-      <PresenceIndicator onlineUsers={onlineUsers} />
+
+      {/* Consolidated top-right bar */}
+      <div style={styles.topBar}>
+        {onBackToLanding && (
+          <button
+            style={{
+              ...styles.topBtn,
+              background: theme.surface,
+              color: theme.textSecondary,
+              boxShadow: theme.shadow,
+              ...(hoveredBtn === 'back' ? { background: theme.surfaceHover } : {}),
+            }}
+            onClick={onBackToLanding}
+            onMouseEnter={() => setHoveredBtn('back')}
+            onMouseLeave={() => setHoveredBtn(null)}
+            title="Back to boards"
+          >
+            ← Boards
+          </button>
+        )}
+        <button
+          style={{
+            ...styles.shareBtn,
+            background: theme.accent,
+            ...(hoveredBtn === 'share' ? { background: theme.accentHover } : {}),
+          }}
+          onClick={handleShareLink}
+          onMouseEnter={() => setHoveredBtn('share')}
+          onMouseLeave={() => setHoveredBtn(null)}
+          title="Copy share link"
+        >
+          Share
+        </button>
+        <button
+          style={{
+            ...styles.themeBtn,
+            background: theme.surface,
+            color: theme.textSecondary,
+            boxShadow: theme.shadow,
+            ...(hoveredBtn === 'theme' ? { background: theme.surfaceHover } : {}),
+          }}
+          onClick={toggleTheme}
+          onMouseEnter={() => setHoveredBtn('theme')}
+          onMouseLeave={() => setHoveredBtn(null)}
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {isDark ? '\u2600' : '\u263D'}
+        </button>
+        <PresenceIndicator onlineUsers={onlineUsers} />
+        <UserBadge user={user} />
+      </div>
+
+      {showCopiedToast && (
+        <div style={{ ...styles.toast, background: theme.toastBg, color: theme.toastText }}>Link copied!</div>
+      )}
+
+      {connectorFrom && (
+        <div style={{ ...styles.connectorHint, background: theme.accent, color: 'white' }}>
+          Click target object to connect (Esc to cancel)
+        </div>
+      )}
 
       <Stage
         ref={stageRef}
@@ -534,7 +712,6 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
         y={stagePos.y}
       >
         <Layer>
-          {/* Render objects sorted by type: frames first (behind), then connectors, then shapes/stickies */}
           {[...objects]
             .sort((a, b) => {
               const order: Record<string, number> = { frame: 0, connector: 1, rectangle: 2, circle: 2, sticky: 3, text: 3 };
@@ -547,8 +724,9 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
                     key={obj.id}
                     frame={obj}
                     onUpdate={updateObject}
-                    isSelected={obj.id === selectedId}
-                    onSelect={() => setSelectedId(obj.id)}
+                    isSelected={selectedIds.includes(obj.id)}
+                    onSelect={(e: any) => handleObjectSelect(obj.id, e)}
+                    isConnectorSource={connectorFrom === obj.id}
                     nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
                     onTransformEnd={() => handleTransformEnd(obj)}
                   />
@@ -567,8 +745,9 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
                     key={obj.id}
                     sticky={obj as any}
                     onUpdate={updateObject}
-                    isSelected={obj.id === selectedId}
-                    onSelect={() => setSelectedId(obj.id)}
+                    isSelected={selectedIds.includes(obj.id)}
+                    onSelect={(e: any) => handleObjectSelect(obj.id, e)}
+                    isConnectorSource={connectorFrom === obj.id}
                     nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
                     onTransformEnd={() => handleTransformEnd(obj)}
                     onStartEditing={handleStartEditing}
@@ -580,8 +759,9 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
                     key={obj.id}
                     textObj={obj}
                     onUpdate={updateObject}
-                    isSelected={obj.id === selectedId}
-                    onSelect={() => setSelectedId(obj.id)}
+                    isSelected={selectedIds.includes(obj.id)}
+                    onSelect={(e: any) => handleObjectSelect(obj.id, e)}
+                    isConnectorSource={connectorFrom === obj.id}
                     nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
                     onTransformEnd={() => handleTransformEnd(obj)}
                     onStartEditing={handleStartEditing}
@@ -593,8 +773,9 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
                     key={obj.id}
                     shape={obj as any}
                     onUpdate={updateObject}
-                    isSelected={obj.id === selectedId}
-                    onSelect={() => setSelectedId(obj.id)}
+                    isSelected={selectedIds.includes(obj.id)}
+                    onSelect={(e: any) => handleObjectSelect(obj.id, e)}
+                    isConnectorSource={connectorFrom === obj.id}
                     nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
                     onTransformEnd={() => handleTransformEnd(obj)}
                   />
@@ -602,22 +783,19 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
               }
             })}
 
-          {/* Resize/transform handles for selected object */}
           <Transformer
             ref={transformerRef}
-            rotateEnabled={false}
-            borderStroke="#2196f3"
-            anchorStroke="#2196f3"
+            rotateEnabled={true}
+            borderStroke="#667eea"
+            anchorStroke="#667eea"
             anchorFill="white"
             anchorSize={8}
             boundBoxFunc={(oldBox, newBox) => {
-              // Limit minimum size
               if (newBox.width < 20 || newBox.height < 20) return oldBox;
               return newBox;
             }}
           />
 
-          {/* Render cursors */}
           {cursors.map((cursor) => (
             <Cursor key={cursor.userId} cursor={cursor} />
           ))}
@@ -672,7 +850,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
                 after: newObject,
                 fullObject: { id: newId, ...newObject },
               });
-              setSelectedId(newId);
+              setSelectedIds([newId]);
             }
             setContextMenu(null);
           }}
@@ -686,17 +864,42 @@ export const Board: React.FC<BoardProps> = ({ boardId, user }) => {
 
       <AICommandInput boardId={boardId} user={user} objects={objects} />
 
-      <div style={styles.instructions}>
-        <p><strong>Controls:</strong></p>
-        <p>• Click tools to select</p>
-        <p>• Click canvas to create</p>
-        <p>• Drag to move (Select tool)</p>
-        <p>• Scroll to zoom</p>
-        <p>• Double-click to edit text</p>
-        <p>• Right-click for menu</p>
-        <p>• Ctrl+C/V copy/paste</p>
-        <p>• Ctrl+Z/Y undo/redo</p>
-      </div>
+      {/* Collapsible help */}
+      <button
+        style={{
+          ...styles.helpButton,
+          background: theme.surface,
+          color: theme.accent,
+          boxShadow: theme.shadow,
+          ...(hoveredBtn === 'help' ? { background: theme.surfaceHover } : {}),
+        }}
+        onClick={() => setShowHelp(!showHelp)}
+        onMouseEnter={() => setHoveredBtn('help')}
+        onMouseLeave={() => setHoveredBtn(null)}
+        title="Keyboard shortcuts & help"
+      >
+        ?
+      </button>
+      {showHelp && (
+        <div style={{ ...styles.helpPanel, background: theme.surface, boxShadow: theme.shadowHeavy }}>
+          <div style={{ ...styles.helpHeader, borderBottomColor: theme.border }}>
+            <strong style={{ color: theme.text }}>Controls</strong>
+            <button style={{ ...styles.helpClose, color: theme.textMuted }} onClick={() => setShowHelp(false)}>×</button>
+          </div>
+          <div style={{ ...styles.helpContent, color: theme.textSecondary }}>
+            <p style={styles.helpRow}>Click tools to select, click canvas to create</p>
+            <p style={styles.helpRow}>Drag to move objects (Select tool)</p>
+            <p style={styles.helpRow}>Scroll to zoom in/out</p>
+            <p style={styles.helpRow}>Double-click to edit text</p>
+            <p style={styles.helpRow}>Right-click for context menu</p>
+            <div style={{ ...styles.helpDivider, background: theme.border }} />
+            <p style={styles.helpRow}><span style={{ ...styles.kbd, background: theme.kbd, borderColor: theme.kbdBorder, color: theme.text }}>Ctrl</span>+<span style={{ ...styles.kbd, background: theme.kbd, borderColor: theme.kbdBorder, color: theme.text }}>C</span> / <span style={{ ...styles.kbd, background: theme.kbd, borderColor: theme.kbdBorder, color: theme.text }}>V</span> Copy / Paste</p>
+            <p style={styles.helpRow}><span style={{ ...styles.kbd, background: theme.kbd, borderColor: theme.kbdBorder, color: theme.text }}>Ctrl</span>+<span style={{ ...styles.kbd, background: theme.kbd, borderColor: theme.kbdBorder, color: theme.text }}>Z</span> Undo</p>
+            <p style={styles.helpRow}><span style={{ ...styles.kbd, background: theme.kbd, borderColor: theme.kbdBorder, color: theme.text }}>Ctrl</span>+<span style={{ ...styles.kbd, background: theme.kbd, borderColor: theme.kbdBorder, color: theme.text }}>Y</span> Redo</p>
+            <p style={styles.helpRow}><span style={{ ...styles.kbd, background: theme.kbd, borderColor: theme.kbdBorder, color: theme.text }}>Del</span> Delete selected</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -706,17 +909,145 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: '100vw',
     height: '100vh',
     overflow: 'hidden',
-    background: '#f5f5f5',
+    background: '#f9fafb',
   },
-  instructions: {
+  topBar: {
     position: 'absolute',
-    bottom: '10px',
-    left: '10px',
-    background: 'white',
-    padding: '10px 15px',
+    top: '12px',
+    right: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    zIndex: 1000,
+  },
+  topBtn: {
+    padding: '7px 14px',
+    border: 'none',
     borderRadius: '8px',
+    background: 'white',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    fontSize: '12px',
-    lineHeight: '1.4',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#4b5563',
+    transition: 'background 0.15s',
+  },
+  topBtnHover: {
+    background: '#f3f4f6',
+  },
+  shareBtn: {
+    padding: '7px 14px',
+    border: 'none',
+    borderRadius: '8px',
+    background: '#667eea',
+    color: 'white',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: 600,
+    transition: 'background 0.15s',
+  },
+  themeBtn: {
+    padding: '7px 10px',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    transition: 'background 0.15s',
+  },
+  toast: {
+    position: 'absolute',
+    top: '52px',
+    right: '12px',
+    background: '#1f2937',
+    color: 'white',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: 500,
+    zIndex: 1100,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+  },
+  connectorHint: {
+    position: 'absolute',
+    top: '70px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '6px 16px',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: 500,
+    zIndex: 1000,
+    pointerEvents: 'none' as const,
+  },
+  helpButton: {
+    position: 'absolute',
+    bottom: '80px',
+    left: '16px',
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    background: 'white',
+    border: 'none',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+    cursor: 'pointer',
+    fontSize: '16px',
+    fontWeight: 700,
+    color: '#667eea',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.15s',
+    zIndex: 1000,
+  },
+  helpPanel: {
+    position: 'absolute',
+    bottom: '124px',
+    left: '16px',
+    background: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+    padding: '16px',
+    maxWidth: '260px',
+    zIndex: 1000,
+  },
+  helpHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+    paddingBottom: '8px',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  helpClose: {
+    background: 'none',
+    border: 'none',
+    fontSize: '18px',
+    cursor: 'pointer',
+    color: '#9ca3af',
+    padding: '0 4px',
+    lineHeight: 1,
+  },
+  helpContent: {
+    fontSize: '13px',
+    lineHeight: 1.6,
+    color: '#4b5563',
+  },
+  helpRow: {
+    margin: '4px 0',
+  },
+  helpDivider: {
+    height: '1px',
+    background: '#e5e7eb',
+    margin: '8px 0',
+  },
+  kbd: {
+    background: '#f3f4f6',
+    padding: '1px 5px',
+    borderRadius: '3px',
+    fontSize: '11px',
+    border: '1px solid #d1d5db',
+    fontFamily: 'monospace',
+    fontWeight: 600,
   },
 };
