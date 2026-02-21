@@ -26,12 +26,12 @@ const MAX_FONT = 72;
 const FONT_STEP = 2;
 
 const tools: { id: Tool; icon: string; label: string; shortcut: string }[] = [
-  { id: 'select', icon: '↖️', label: 'Select', shortcut: 'V' },
+  { id: 'select', icon: '🖱️', label: 'Select', shortcut: 'V' },
   { id: 'sticky', icon: '📝', label: 'Note', shortcut: 'S' },
-  { id: 'rectangle', icon: '▭', label: 'Rect', shortcut: 'R' },
-  { id: 'circle', icon: '○', label: 'Circle', shortcut: 'C' },
-  { id: 'text', icon: 'T', label: 'Text', shortcut: 'T' },
-  { id: 'frame', icon: '⬜', label: 'Frame', shortcut: 'F' },
+  { id: 'rectangle', icon: '⬜', label: 'Rectangle', shortcut: 'R' },
+  { id: 'circle', icon: '⭕', label: 'Circle', shortcut: 'C' },
+  { id: 'text', icon: '🔤', label: 'Text', shortcut: 'T' },
+  { id: 'frame', icon: '🖼️', label: 'Frame', shortcut: 'F' },
   { id: 'connector', icon: '🔗', label: 'Connect', shortcut: 'L' },
 ];
 
@@ -156,18 +156,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           onClick={onExportPNG}
           onMouseEnter={() => setHovered('png')}
           onMouseLeave={() => setHovered(null)}
-          title="Export as PNG"
+          title="Export as PNG image"
         >
-          PNG
+          ⬇ PNG
         </button>
         <button
           style={getSmallBtnStyle('pdf')}
           onClick={onExportPDF}
           onMouseEnter={() => setHovered('pdf')}
           onMouseLeave={() => setHovered(null)}
-          title="Export as PDF"
+          title="Export as PDF document"
         >
-          PDF
+          ⬇ PDF
         </button>
       </div>
 
@@ -181,16 +181,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           onMouseLeave={() => setHovered(null)}
           title="Auto-arrange objects in a grid"
         >
-          Grid
+          ⊞ Tidy
         </button>
         <button
           style={getSmallBtnStyle('group')}
           onClick={onGroupByColor}
           onMouseEnter={() => setHovered('group')}
           onMouseLeave={() => setHovered(null)}
-          title="Group objects by color"
+          title="Sort objects by color"
         >
-          Group
+          🎨 Sort
         </button>
       </div>
     </div>
