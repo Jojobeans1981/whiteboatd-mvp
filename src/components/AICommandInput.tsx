@@ -57,36 +57,62 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
     setStatus('loading');
     setMessage('');
 
-    try {
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          command: inputValue.trim(),
-          boardId,
-          boardState: objects,
-          userId: user.uid,
-          userName: user.displayName || user.email || 'Anonymous',
-        }),
-      });
+    const MAX_CLIENT_RETRIES = 2;
+    let lastError = '';
 
-      const data = await response.json();
+    for (let retry = 0; retry <= MAX_CLIENT_RETRIES; retry++) {
+      try {
+        if (retry > 0) {
+          setMessage(`Rate limited — retrying in ${retry * 5}s... (attempt ${retry + 1})`);
+          await new Promise((r) => setTimeout(r, retry * 5000));
+        }
 
-      if (data.success && data.operations) {
-        // Write AI-generated objects to Firestore via client SDK
-        await executeOperations(data.operations);
-        setStatus('success');
-        setMessage(data.message || `Created ${data.objectsCreated} objects.`);
-      } else if (data.success) {
-        setStatus('success');
-        setMessage(data.message || 'Done.');
-      } else {
-        setStatus('error');
-        setMessage(data.error || 'Something went wrong');
+        const response = await fetch('/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            command: inputValue.trim(),
+            boardId,
+            boardState: objects,
+            userId: user.uid,
+            userName: user.displayName || user.email || 'Anonymous',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.operations) {
+          await executeOperations(data.operations);
+          setStatus('success');
+          setMessage(data.message || `Created ${data.objectsCreated} objects.`);
+          lastError = '';
+          break;
+        } else if (data.success) {
+          setStatus('success');
+          setMessage(data.message || 'Done.');
+          lastError = '';
+          break;
+        } else if (response.status === 429 && retry < MAX_CLIENT_RETRIES) {
+          lastError = data.error || 'Rate limited';
+          continue; // retry
+        } else {
+          setStatus('error');
+          setMessage(data.error || 'Something went wrong');
+          lastError = '';
+          break;
+        }
+      } catch (err) {
+        lastError = 'Failed to reach AI service';
+        if (retry >= MAX_CLIENT_RETRIES) {
+          setStatus('error');
+          setMessage(lastError);
+        }
       }
-    } catch (err) {
+    }
+
+    if (lastError) {
       setStatus('error');
-      setMessage('Failed to reach AI service');
+      setMessage(lastError + ' — please wait a minute and try again.');
     }
 
     setInputValue('');

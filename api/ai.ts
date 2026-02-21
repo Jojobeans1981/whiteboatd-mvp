@@ -452,7 +452,7 @@ function processToolCall(
         }
         positions = [];
         let columnX = 100;
-        for (const [, group] of [...groups.entries()].sort((a, b) => b[1].length - a[1].length)) {
+        for (const [, group] of Array.from(groups.entries()).sort((a, b) => b[1].length - a[1].length)) {
           let rowY = 100;
           let maxW = 0;
           for (const obj of group) {
@@ -644,22 +644,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
   }
 
+  // Helper: wait ms
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
   // Wrap with LangSmith tracing
   const runAgent = traceable(
     async (params: { command: string; boardState: BoardObject[]; userId: string }) => {
       let lastError: any;
 
-      for (const modelName of MODELS) {
-        try {
-          return await runWithModel(modelName, params);
-        } catch (error: any) {
-          lastError = error;
-          const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Resource has been exhausted');
-          if (is429 && modelName !== MODELS[MODELS.length - 1]) {
-            console.log(`Model ${modelName} rate limited, falling back to next model...`);
-            continue;
+      // Try each model, and on 429 retry with delay before falling back
+      for (let i = 0; i < MODELS.length; i++) {
+        const modelName = MODELS[i];
+
+        // Try up to 2 attempts per model (initial + 1 retry after delay)
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            return await runWithModel(modelName, params);
+          } catch (error: any) {
+            lastError = error;
+            const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Resource has been exhausted');
+
+            if (!is429) {
+              throw error; // Non-rate-limit error — don't retry
+            }
+
+            console.log(`Model ${modelName} rate limited (attempt ${attempt + 1})`);
+
+            // First attempt: wait and retry same model
+            if (attempt === 0) {
+              console.log(`Waiting 3 seconds before retry...`);
+              await wait(3000);
+              continue;
+            }
+
+            // Second attempt failed: fall back to next model if available
+            if (i < MODELS.length - 1) {
+              console.log(`Falling back to ${MODELS[i + 1]}...`);
+              await wait(1000);
+            }
           }
-          throw error;
         }
       }
 
