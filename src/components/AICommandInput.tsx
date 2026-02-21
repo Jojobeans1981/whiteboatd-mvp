@@ -35,20 +35,17 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
   const [status, setStatus] = useState<AIStatus>('idle');
   const [message, setMessage] = useState('');
 
-  // Execute operations returned by the AI endpoint against Firestore
+  // Execute operations returned by the AI endpoint against Firestore (in parallel)
   const executeOperations = async (operations: Operation[]) => {
-    for (const op of operations) {
+    await Promise.all(operations.map((op) => {
       if (op.action === 'create') {
-        const objectRef = doc(db, 'boards', boardId, 'objects', op.id);
-        await setDoc(objectRef, op.data);
+        return setDoc(doc(db, 'boards', boardId, 'objects', op.id), op.data);
       } else if (op.action === 'update') {
-        const objectRef = doc(db, 'boards', boardId, 'objects', op.objectId);
-        await updateDoc(objectRef, op.data);
+        return updateDoc(doc(db, 'boards', boardId, 'objects', op.objectId), op.data);
       } else if (op.action === 'delete') {
-        const objectRef = doc(db, 'boards', boardId, 'objects', op.objectId);
-        await deleteDoc(objectRef);
+        return deleteDoc(doc(db, 'boards', boardId, 'objects', op.objectId));
       }
-    }
+    }));
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
