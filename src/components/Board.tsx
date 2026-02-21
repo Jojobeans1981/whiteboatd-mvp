@@ -970,7 +970,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   connectorHint: {
     position: 'absolute',
-    top: '70px',
+    top: '115px',
     left: '50%',
     transform: 'translateX(-50%)',
     padding: '6px 16px',

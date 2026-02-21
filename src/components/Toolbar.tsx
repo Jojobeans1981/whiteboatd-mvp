@@ -200,7 +200,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 const styles: { [key: string]: React.CSSProperties } = {
   toolbar: {
     position: 'absolute',
-    top: '12px',
+    top: '56px',
     left: '50%',
     transform: 'translateX(-50%)',
     display: 'flex',
