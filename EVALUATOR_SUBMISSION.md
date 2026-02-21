@@ -270,8 +270,9 @@ service cloud.firestore {
 
 ### 🤖 AI Board Agent
 
-**Model**: Google Gemini 2.5 Flash (free tier)
+**Model**: Google Gemini 2.5 Flash (primary), 2.0 Flash & 1.5 Flash (fallbacks)
 **Architecture**: Vercel Serverless Function + Gemini Function Calling + Client-side Firestore writes
+**Rate Limit Resilience**: Automatic model fallback chain (2.5 → 2.0 → 1.5 Flash) — if one model is rate-limited, the next is tried automatically
 
 **12 AI Tools**: createStickyNote, createShape, createFrame, createConnector, createText, moveObject, resizeObject, updateText, changeColor, deleteObject, clearBoard, getBoardState
 
@@ -311,6 +312,7 @@ service cloud.firestore {
 - ✅ Standalone text objects (T tool — no background, configurable font size)
 - ✅ Object resize handles (drag corners/edges to resize sticky notes, shapes, and frames)
 - ✅ LangSmith observability (traces AI agent requests, latency, errors)
+- ✅ Model fallback chain (gemini-2.5-flash → 2.0-flash → 1.5-flash for rate limit resilience)
 
 ---
 

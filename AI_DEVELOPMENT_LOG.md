@@ -354,3 +354,41 @@ Added a `text` object type for text labels without a background — useful for h
 ### Delete Objects
 
 Select any object and press **Delete** or **Backspace** to remove it from the board and Firestore. The keyboard handler skips the event if the user is typing in an input or textarea.
+
+### AI Delete & Clear Tools
+
+Added `deleteObject` and `clearBoard` tools (tools 11 and 12) so the AI agent can remove objects by ID or wipe the entire board. The system prompt was updated to explicitly instruct Gemini to use these tools when users ask to delete, remove, or clear.
+
+### Model Fallback Chain (Rate Limit Resilience)
+
+Google Gemini's free tier limits each model to 10 requests/minute and 250 requests/day. To maximize availability, the agent now tries up to 3 models in sequence:
+
+```
+gemini-2.5-flash  →  gemini-2.0-flash  →  gemini-1.5-flash
+   (primary)           (fallback #1)        (fallback #2)
+```
+
+**Implementation:**
+- `runWithModel()` is a standalone function that accepts a model name and runs the full tool-use loop
+- The `traceable`-wrapped `runAgent` iterates through the `MODELS` array
+- On a 429 / "Resource has been exhausted" error, it logs the failure and tries the next model
+- Only if **all three** models are rate-limited does the user see an error
+- Each model has independent rate limits, effectively tripling free-tier capacity to ~30 RPM / 750 RPD
+
+```typescript
+const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+
+for (const modelName of MODELS) {
+  try {
+    return await runWithModel(modelName, params);
+  } catch (error) {
+    if (is429 && modelName !== MODELS[MODELS.length - 1]) {
+      console.log(`${modelName} rate limited, falling back...`);
+      continue;
+    }
+    throw error;
+  }
+}
+```
+
+**Why this matters:** During demo/evaluation, rapid testing of AI commands would frequently hit the 10 RPM limit and block the agent. The fallback chain makes this nearly invisible to the user.
