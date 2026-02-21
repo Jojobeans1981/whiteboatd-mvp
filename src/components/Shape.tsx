@@ -10,6 +10,7 @@ interface ShapeProps {
   isSelected: boolean;
   onSelect: (e: any) => void;
   isConnectorSource?: boolean;
+  isConnectorMode?: boolean;
   nodeRef?: (node: any) => void;
   onTransformEnd?: () => void;
 }
@@ -20,6 +21,7 @@ export const Shape: React.FC<ShapeProps> = ({
   isSelected,
   onSelect,
   isConnectorSource,
+  isConnectorMode,
   nodeRef,
   onTransformEnd,
 }) => {
@@ -29,7 +31,7 @@ export const Shape: React.FC<ShapeProps> = ({
       x={shape.x}
       y={shape.y}
       rotation={shape.rotation || 0}
-      draggable
+      draggable={!isConnectorMode}
       onDragEnd={(e) => {
         onUpdate(shape.id, {
           x: e.target.x(),

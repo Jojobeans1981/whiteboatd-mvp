@@ -8,6 +8,7 @@ interface TextObjectProps {
   isSelected: boolean;
   onSelect: (e: any) => void;
   isConnectorSource?: boolean;
+  isConnectorMode?: boolean;
   onStartEditing?: (obj: BoardObject) => void;
   nodeRef?: (node: any) => void;
   onTransformEnd?: () => void;
@@ -19,6 +20,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
   isSelected,
   onSelect,
   isConnectorSource,
+  isConnectorMode,
   onStartEditing,
   nodeRef,
   onTransformEnd,
@@ -42,7 +44,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
       x={textObj.x}
       y={textObj.y}
       rotation={textObj.rotation || 0}
-      draggable
+      draggable={!isConnectorMode}
       onDragEnd={(e) => {
         onUpdate(textObj.id, {
           x: e.target.x(),

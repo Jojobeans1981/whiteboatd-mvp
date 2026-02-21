@@ -10,6 +10,7 @@ interface StickyNoteProps {
   isSelected: boolean;
   onSelect: (e: any) => void;
   isConnectorSource?: boolean;
+  isConnectorMode?: boolean;
   nodeRef?: (node: any) => void;
   onTransformEnd?: () => void;
   onStartEditing?: (obj: StickyNoteType) => void;
@@ -21,6 +22,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
   isSelected,
   onSelect,
   isConnectorSource,
+  isConnectorMode,
   nodeRef,
   onTransformEnd,
   onStartEditing,
@@ -42,7 +44,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
       x={sticky.x}
       y={sticky.y}
       rotation={sticky.rotation || 0}
-      draggable
+      draggable={!isConnectorMode}
       onDragEnd={(e) => {
         onUpdate(sticky.id, {
           x: e.target.x(),

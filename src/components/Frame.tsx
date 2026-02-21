@@ -8,11 +8,12 @@ interface FrameProps {
   isSelected: boolean;
   onSelect: (e: any) => void;
   isConnectorSource?: boolean;
+  isConnectorMode?: boolean;
   nodeRef?: (node: any) => void;
   onTransformEnd?: () => void;
 }
 
-export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSelect, isConnectorSource, nodeRef, onTransformEnd }) => {
+export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSelect, isConnectorSource, isConnectorMode, nodeRef, onTransformEnd }) => {
   // Parse a semi-transparent version of the color for the fill
   const fillColor = frame.color + '15';
 
@@ -22,7 +23,7 @@ export const Frame: React.FC<FrameProps> = ({ frame, onUpdate, isSelected, onSel
       x={frame.x}
       y={frame.y}
       rotation={frame.rotation || 0}
-      draggable
+      draggable={!isConnectorMode}
       onClick={onSelect}
       onTap={onSelect}
       onTransformEnd={onTransformEnd}

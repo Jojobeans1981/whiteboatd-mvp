@@ -32,7 +32,7 @@ const tools: { id: Tool; icon: string; label: string; shortcut: string }[] = [
   { id: 'circle', icon: '○', label: 'Circle', shortcut: 'C' },
   { id: 'text', icon: 'T', label: 'Text', shortcut: 'T' },
   { id: 'frame', icon: '⬜', label: 'Frame', shortcut: 'F' },
-  { id: 'connector', icon: '↗️', label: 'Line', shortcut: 'L' },
+  { id: 'connector', icon: '🔗', label: 'Connect', shortcut: 'L' },
 ];
 
 export const Toolbar: React.FC<ToolbarProps> = ({

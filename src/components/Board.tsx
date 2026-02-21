@@ -653,6 +653,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
                     isSelected={selectedIds.includes(obj.id)}
                     onSelect={(e: any) => handleObjectSelect(obj.id, e)}
                     isConnectorSource={connectorFrom === obj.id}
+                    isConnectorMode={selectedTool === 'connector'}
                     nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
                     onTransformEnd={() => handleTransformEnd(obj)}
                   />
@@ -674,6 +675,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
                     isSelected={selectedIds.includes(obj.id)}
                     onSelect={(e: any) => handleObjectSelect(obj.id, e)}
                     isConnectorSource={connectorFrom === obj.id}
+                    isConnectorMode={selectedTool === 'connector'}
                     nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
                     onTransformEnd={() => handleTransformEnd(obj)}
                     onStartEditing={handleStartEditing}
@@ -688,6 +690,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
                     isSelected={selectedIds.includes(obj.id)}
                     onSelect={(e: any) => handleObjectSelect(obj.id, e)}
                     isConnectorSource={connectorFrom === obj.id}
+                    isConnectorMode={selectedTool === 'connector'}
                     nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
                     onTransformEnd={() => handleTransformEnd(obj)}
                     onStartEditing={handleStartEditing}
@@ -702,6 +705,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
                     isSelected={selectedIds.includes(obj.id)}
                     onSelect={(e: any) => handleObjectSelect(obj.id, e)}
                     isConnectorSource={connectorFrom === obj.id}
+                    isConnectorMode={selectedTool === 'connector'}
                     nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
                     onTransformEnd={() => handleTransformEnd(obj)}
                   />
