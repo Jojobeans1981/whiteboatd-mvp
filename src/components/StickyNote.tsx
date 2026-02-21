@@ -1,7 +1,7 @@
 // src/components/StickyNote.tsx
 
 import React from 'react';
-import { Rect, Text, Group } from 'react-konva';
+import { Rect, Text, Group, Circle, Line } from 'react-konva';
 import { StickyNote as StickyNoteType } from '../types';
 
 interface StickyNoteProps {
@@ -77,12 +77,37 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
         width={sticky.width - 20}
         height={sticky.height - 20}
         x={10}
-        y={10}
+        y={14}
         fontSize={sticky.fontSize || 14}
         fill="#333"
         wrap="word"
         align="left"
         verticalAlign="top"
+      />
+
+      {/* Pushpin */}
+      <Circle
+        x={sticky.width / 2}
+        y={0}
+        radius={6}
+        fill="#d32f2f"
+        stroke="#b71c1c"
+        strokeWidth={1}
+        shadowColor="black"
+        shadowBlur={2}
+        shadowOpacity={0.3}
+        shadowOffsetY={1}
+      />
+      <Circle
+        x={sticky.width / 2}
+        y={0}
+        radius={2}
+        fill="#ffcdd2"
+      />
+      <Line
+        points={[sticky.width / 2, 6, sticky.width / 2, 12]}
+        stroke="#757575"
+        strokeWidth={1.5}
       />
     </Group>
   );
