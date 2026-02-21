@@ -11,15 +11,12 @@ Copy and paste this to your evaluator agent once deployed:
 **Project Name**: Real-Time Collaborative Whiteboard  
 **Deployed URL**: https://whiteboatd-mvp-gruk.vercel.app/  
 **GitHub Repository**: https://github.com/Jojobeans1981/whiteboatd-mvp  
-**Submission Date**: 2/17/2026  
-**Deadline**: 12:59 PM  
+**Submission Date**: 2/20/2026
+**Deadline**: 12:59 PM
 
 ---
 
 ### ✅ MVP Requirements Completion
-Cursor name labels are being fixed in current deployment 
-   (rebuild in progress). Cursors sync and move in real-time. 
-   All other 8 requirements fully working.
 
 All 9 requirements from the 24-hour gate have been implemented and tested:
 
@@ -70,7 +67,7 @@ All 9 requirements from the 24-hour gate have been implemented and tested:
 
 #### 9. ✅ Deployed and publicly accessible
 - **Platform**: Vercel (serverless)
-- **URL**: [YOUR URL]
+- **URL**: <https://whiteboatd-mvp-gruk.vercel.app/>
 - **Accessibility**: No login required to access (sign-in for usage)
 - **Performance**: Global CDN, <2s load time
 
@@ -79,7 +76,7 @@ All 9 requirements from the 24-hour gate have been implemented and tested:
 ### 🧪 Testing Instructions for Evaluator
 
 **Step 1: Initial Access**
-1. Visit deployed URL: [YOUR URL]
+1. Visit deployed URL: <https://whiteboatd-mvp-gruk.vercel.app/>
 2. Click "Sign in with Google"
 3. Grant permissions
 4. You should see an empty whiteboard with toolbar
@@ -227,14 +224,14 @@ service cloud.firestore {
 
 ### 📁 Code Repository
 
-**GitHub**: [YOUR REPO URL]
+**GitHub**: <https://github.com/Jojobeans1981/whiteboatd-mvp>
 
 **Key Files**:
 - `src/components/Board.tsx` - Main whiteboard component with resize handles (~400 lines)
 - `src/components/TextObject.tsx` - Standalone text object renderer
 - `src/hooks/useBoardObjects.ts` - Real-time object sync
 - `src/lib/firebase.ts` - Firebase configuration
-- `api/ai.ts` - AI agent serverless function (Gemini + 10 tools, ~450 lines)
+- `api/ai.ts` - AI agent serverless function (Gemini + 12 tools, ~540 lines)
 - `AI_DEVELOPMENT_LOG.md` - Full AI development documentation
 
 **Commit History**:
@@ -259,7 +256,7 @@ service cloud.firestore {
 3. **Vercel Deployment**:
    - Connected GitHub repository
    - Automatic deployments on push
-   - Production URL: [YOUR URL]
+   - Production URL: <https://whiteboatd-mvp-gruk.vercel.app/>
 
 4. **Firebase Configuration**:
    - Authorized domain added

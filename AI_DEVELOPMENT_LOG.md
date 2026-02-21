@@ -48,7 +48,7 @@ User Command -> POST /api/ai -> Gemini API (function calling) -> Return operatio
 | Multi-turn tool use | Yes | Yes |
 | Quality | Excellent | Good (sufficient for our use case) |
 
-Gemini was chosen purely for cost reasons. The function calling capabilities are equivalent for our 10-tool agent.
+Gemini was chosen purely for cost reasons. The function calling capabilities are equivalent for our 12-tool agent.
 
 ### LangSmith Observability
 
@@ -145,7 +145,7 @@ This allows commands like "Create a SWOT analysis" to work, which requires:
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `api/ai.ts` | Vercel serverless function with Gemini integration | ~450 |
+| `api/ai.ts` | Vercel serverless function with Gemini integration | ~540 |
 | `src/components/AICommandInput.tsx` | Floating command input UI | ~220 |
 | `src/components/Frame.tsx` | Konva frame renderer (labeled container) | ~53 |
 | `src/components/Connector.tsx` | Konva arrow/connector renderer | ~43 |
@@ -171,19 +171,19 @@ The `AICommandInput` component receives operations from the API and writes them 
 
 ```typescript
 const executeOperations = async (operations: Operation[]) => {
-  for (const op of operations) {
+  await Promise.all(operations.map((op) => {
     if (op.action === 'create') {
-      const objectRef = doc(db, 'boards', boardId, 'objects', op.id);
-      await setDoc(objectRef, op.data);
+      return setDoc(doc(db, 'boards', boardId, 'objects', op.id), op.data);
     } else if (op.action === 'update') {
-      const objectRef = doc(db, 'boards', boardId, 'objects', op.objectId);
-      await updateDoc(objectRef, op.data);
+      return updateDoc(doc(db, 'boards', boardId, 'objects', op.objectId), op.data);
+    } else if (op.action === 'delete') {
+      return deleteDoc(doc(db, 'boards', boardId, 'objects', op.objectId));
     }
-  }
+  }));
 };
 ```
 
-This leverages the existing Firebase client SDK and authentication — no additional auth setup needed.
+Operations execute in parallel using `Promise.all` for faster perceived response times. This leverages the existing Firebase client SDK and authentication — no additional auth setup needed.
 
 ---
 

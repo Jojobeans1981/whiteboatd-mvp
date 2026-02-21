@@ -1,6 +1,6 @@
 # Collaborative Whiteboard MVP
 
-Real-time collaborative whiteboard with multiplayer cursors, sticky notes, and shapes.
+Real-time collaborative whiteboard with multiplayer cursors, sticky notes, shapes, frames, connectors, and an AI Board Agent powered by Google Gemini.
 
 ## 🚀 Quick Start (For Dummies)
 
@@ -305,17 +305,25 @@ The MVP meets these requirements:
 
 ---
 
+## 🎯 Completed Features (Beyond MVP)
+
+- AI Board Agent with 12 tools (Gemini 2.5 Flash + model fallback chain)
+- Complex AI commands (SWOT analysis, retrospectives, user journey maps)
+- Frames (labeled containers) and connectors (arrows between objects)
+- Standalone text objects (T tool)
+- Object resize handles (drag corners/edges)
+- Delete objects (select + Delete/Backspace key)
+- Color picker with 8 colors
+- LangSmith observability for AI traces
+
 ## 🎯 Next Steps (Post-MVP)
 
-After MVP approval, we'll add:
-1. AI agent with Claude integration
-2. Complex commands (SWOT analysis, grids)
-3. Frames and connectors
-4. Copy/paste, undo/redo
-5. Export to image/PDF
-6. Room system (multiple boards)
-7. Better text editing (inline, not prompt)
-8. Transform tools (resize, rotate)
+Planned for future iterations:
+1. Copy/paste, undo/redo
+2. Export to image/PDF
+3. Room system (multiple boards)
+4. Better text editing (inline, not prompt)
+5. Role-based access control
 
 ---
 
@@ -330,6 +338,6 @@ If stuck:
 
 ---
 
-**Project Status**: MVP Complete ✅  
-**Deployment**: Ready for evaluation  
-**Deadline**: 12:59 PM Today
+**Project Status**: MVP Complete + AI Agent Deployed ✅
+**Deployed URL**: <https://whiteboatd-mvp-gruk.vercel.app/>
+**GitHub**: <https://github.com/Jojobeans1981/whiteboatd-mvp>
