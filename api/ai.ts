@@ -29,6 +29,72 @@ type Operation = CreateOperation | UpdateOperation | DeleteOperation;
 
 // --- Gemini tool (function) declarations ---
 const TOOL_DECLARATIONS = [
+    {
+      name: 'moveObjects',
+      description: 'Move multiple objects to new positions in a single operation.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          moves: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                objectId: { type: SchemaType.STRING, description: 'ID of the object to move' },
+                x: { type: SchemaType.NUMBER, description: 'New X coordinate' },
+                y: { type: SchemaType.NUMBER, description: 'New Y coordinate' },
+              },
+              required: ['objectId', 'x', 'y'],
+            },
+          },
+        },
+        required: ['moves'],
+      },
+    },
+    {
+      name: 'resizeObjects',
+      description: 'Resize multiple objects in a single operation.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          resizes: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                objectId: { type: SchemaType.STRING, description: 'ID of the object to resize' },
+                width: { type: SchemaType.NUMBER, description: 'New width' },
+                height: { type: SchemaType.NUMBER, description: 'New height' },
+                radius: { type: SchemaType.NUMBER, description: 'New radius (for circles)' },
+              },
+              required: ['objectId'],
+            },
+          },
+        },
+        required: ['resizes'],
+      },
+    },
+    {
+      name: 'changeColors',
+      description: 'Change colors of multiple objects in a single operation.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          colorChanges: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                objectId: { type: SchemaType.STRING, description: 'ID of the object to recolor' },
+                color: { type: SchemaType.STRING, description: 'New color hex' },
+              },
+              required: ['objectId', 'color'],
+            },
+          },
+        },
+        required: ['colorChanges'],
+      },
+    },
   {
     name: 'createStickyNote',
     description: 'Create a sticky note on the whiteboard with text content.',
@@ -217,6 +283,8 @@ const TOOL_DECLARATIONS = [
 
 // --- System prompt ---
 const SYSTEM_PROMPT = `You are an AI assistant for a collaborative whiteboard application. Users give you natural language commands and you execute them by calling the provided tools.
+
+You should always batch operations whenever possible. If a user command affects multiple objects (e.g., "move all stickies to the right", "resize all frames", "change color of all circles"), use the batch tools (moveObjects, resizeObjects, changeColors) to perform these actions in a single function call. This reduces API calls and improves performance at scale.
 
 Rules:
 - Use the provided tools to create, manipulate, and delete board objects.
@@ -582,7 +650,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let finalMessage = '';
 
     const userMessage = buildUserMessage(params.command, params.boardState);
+
     let result = await chat.sendMessage(userMessage);
+
+    // --- Gemini Pro token usage logging ---
+    if (result && result.response && result.response.usage) {
+      const usage = result.response.usage;
+      console.log('Gemini Pro usage:', {
+        prompt_tokens: usage.prompt_tokens,
+        completion_tokens: usage.completion_tokens,
+        total_tokens: usage.total_tokens,
+        model: modelName,
+        userId: params.userId,
+        boardId: boardId,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      console.log('Gemini Pro usage: usage data not available in response', {
+        model: modelName,
+        userId: params.userId,
+        boardId: boardId,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     const MAX_ITERATIONS = 10;
     let iteration = 0;
