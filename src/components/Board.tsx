@@ -904,6 +904,9 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
           </div>
         </div>
       )}
+
+      {/* Watermark */}
+      <div style={styles.watermark}>GAUNTLET AI G4</div>
     </div>
   );
 };
@@ -971,6 +974,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 500,
     zIndex: 1100,
     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+  },
+  watermark: {
+    position: 'absolute',
+    bottom: '24px',
+    right: '24px',
+    fontSize: '14px',
+    fontWeight: 700,
+    letterSpacing: '2px',
+    color: 'rgba(0,0,0,0.08)',
+    pointerEvents: 'none' as const,
+    userSelect: 'none' as const,
+    zIndex: 1,
   },
   connectorHint: {
     position: 'absolute',
