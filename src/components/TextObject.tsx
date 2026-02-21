@@ -7,6 +7,9 @@ interface TextObjectProps {
   onUpdate: (id: string, updates: Partial<BoardObject>) => void;
   isSelected: boolean;
   onSelect: () => void;
+  onStartEditing?: (obj: BoardObject) => void;
+  nodeRef?: (node: any) => void;
+  onTransformEnd?: () => void;
 }
 
 export const TextObject: React.FC<TextObjectProps> = ({
@@ -14,11 +17,18 @@ export const TextObject: React.FC<TextObjectProps> = ({
   onUpdate,
   isSelected,
   onSelect,
+  onStartEditing,
+  nodeRef,
+  onTransformEnd,
 }) => {
   const handleDoubleClick = () => {
-    const newText = prompt('Edit text:', textObj.text || '');
-    if (newText !== null && newText !== textObj.text) {
-      onUpdate(textObj.id, { text: newText, updatedAt: Date.now() });
+    if (onStartEditing) {
+      onStartEditing(textObj);
+    } else {
+      const newText = prompt('Edit text:', textObj.text || '');
+      if (newText !== null && newText !== textObj.text) {
+        onUpdate(textObj.id, { text: newText, updatedAt: Date.now() });
+      }
     }
   };
 
@@ -26,6 +36,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
 
   return (
     <Group
+      ref={nodeRef}
       x={textObj.x}
       y={textObj.y}
       draggable
@@ -40,6 +51,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
       onTap={onSelect}
       onDblClick={handleDoubleClick}
       onDblTap={handleDoubleClick}
+      onTransformEnd={onTransformEnd}
     >
       <Text
         text={textObj.text || 'Double-click to edit'}

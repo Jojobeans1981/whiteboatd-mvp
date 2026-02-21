@@ -9,6 +9,8 @@ interface ToolbarProps {
   onToolChange: (tool: Tool) => void;
   selectedColor: string;
   onColorChange: (color: string) => void;
+  onExportPNG?: () => void;
+  onExportPDF?: () => void;
 }
 
 const colors = ['#FFE066', '#FF6B6B', '#4ECDC4', '#45B7D1', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3'];
@@ -18,6 +20,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onToolChange,
   selectedColor,
   onColorChange,
+  onExportPNG,
+  onExportPDF,
 }) => {
   return (
     <div style={styles.toolbar}>
@@ -75,6 +79,25 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           />
         ))}
       </div>
+
+      <div style={styles.divider} />
+
+      <div style={styles.section}>
+        <button
+          style={styles.exportButton}
+          onClick={onExportPNG}
+          title="Export as PNG"
+        >
+          PNG
+        </button>
+        <button
+          style={styles.exportButton}
+          onClick={onExportPDF}
+          title="Export as PDF"
+        >
+          PDF
+        </button>
+      </div>
     </div>
   );
 };
@@ -131,5 +154,15 @@ const styles: { [key: string]: React.CSSProperties } = {
   activeColorButton: {
     borderColor: '#333',
     transform: 'scale(1.1)',
+  },
+  exportButton: {
+    padding: '6px 10px',
+    border: '2px solid transparent',
+    borderRadius: '5px',
+    background: '#f5f5f5',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 600,
+    transition: 'all 0.2s',
   },
 };

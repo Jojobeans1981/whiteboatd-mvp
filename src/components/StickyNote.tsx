@@ -11,6 +11,7 @@ interface StickyNoteProps {
   onSelect: () => void;
   nodeRef?: (node: any) => void;
   onTransformEnd?: () => void;
+  onStartEditing?: (obj: StickyNoteType) => void;
 }
 
 export const StickyNote: React.FC<StickyNoteProps> = ({
@@ -20,11 +21,16 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
   onSelect,
   nodeRef,
   onTransformEnd,
+  onStartEditing,
 }) => {
   const handleDoubleClick = () => {
-    const newText = prompt('Edit text:', sticky.text);
-    if (newText !== null && newText !== sticky.text) {
-      onUpdate(sticky.id, { text: newText, updatedAt: Date.now() });
+    if (onStartEditing) {
+      onStartEditing(sticky);
+    } else {
+      const newText = prompt('Edit text:', sticky.text);
+      if (newText !== null && newText !== sticky.text) {
+        onUpdate(sticky.id, { text: newText, updatedAt: Date.now() });
+      }
     }
   };
 
