@@ -38,7 +38,7 @@ function App() {
   if (loading) {
     return (
       <div style={styles.loading}>
-        <h1 style={styles.loadingTitle}>Whiteboard</h1>
+        <h1 style={styles.loadingTitle}>GAUNTLET AI G4</h1>
         <p style={styles.loadingSubtext}>Loading...</p>
       </div>
     );

@@ -99,8 +99,8 @@ export const LoginScreen: React.FC = () => {
   return (
     <div style={loginStyles.container}>
       <div style={loginStyles.card}>
-        <h1 style={loginStyles.title}>Whiteboard</h1>
-        <p style={loginStyles.tagline}>Where ideas meet the wall.</p>
+        <h1 style={loginStyles.title}>GAUNTLET AI G4</h1>
+        <p style={loginStyles.tagline}>Collab Board</p>
         <p style={loginStyles.subtitle}>
           Real-time collaboration for teams that think visually
         </p>
