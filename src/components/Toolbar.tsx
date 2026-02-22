@@ -25,7 +25,7 @@ const MIN_FONT = 8;
 const MAX_FONT = 72;
 const FONT_STEP = 2;
 
-const tools: { id: Tool; icon: string; label: string; shortcut: string }[] = [
+const tools: { id: Tool | 'template'; icon: string; label: string; shortcut: string }[] = [
   { id: 'select', icon: '🖱️', label: 'Select', shortcut: 'V' },
   { id: 'sticky', icon: '📝', label: 'Note', shortcut: 'S' },
   { id: 'rectangle', icon: '⬜', label: 'Rectangle', shortcut: 'R' },
@@ -33,6 +33,7 @@ const tools: { id: Tool; icon: string; label: string; shortcut: string }[] = [
   { id: 'text', icon: '🔤', label: 'Text', shortcut: 'T' },
   { id: 'frame', icon: '🖼️', label: 'Frame', shortcut: 'F' },
   { id: 'connector', icon: '🔗', label: 'Connect', shortcut: 'L' },
+  { id: 'template', icon: '📋', label: 'Templates', shortcut: 'M' },
 ];
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -87,8 +88,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         {tools.map((t) => (
           <button
             key={t.id}
-            style={getToolBtnStyle(t.id)}
-            onClick={() => onToolChange(t.id)}
+            style={getToolBtnStyle(t.id as Tool)}
+            onClick={() => {
+              if (t.id === 'template') {
+                // Open template selection modal or trigger AI template generation
+                alert('Templates feature coming soon!');
+                return;
+              }
+              onToolChange(t.id as Tool);
+            }}
             onMouseEnter={() => setHovered(t.id)}
             onMouseLeave={() => setHovered(null)}
             title={`${t.label} (${t.shortcut})`}
