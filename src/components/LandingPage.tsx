@@ -3,6 +3,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { generateId } from '../lib/utils';
 import { User } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LandingPageProps {
   user: User;
@@ -14,6 +15,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ user, onNavigateToBoar
   const [error, setError] = useState('');
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
+  const { theme, isDark } = useTheme();
 
   const handleCreateBoard = () => {
     const boardId = generateId();
@@ -52,15 +54,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ user, onNavigateToBoar
   const initial = ((user.displayName || user.email || 'U')[0] || 'U').toUpperCase();
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.userRow}>
+    <div style={{ ...styles.container, background: isDark ? theme.bg : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+      <div style={{ ...styles.card, background: theme.surface, boxShadow: theme.shadowHeavy }}>
+        <div style={{ ...styles.userRow, borderBottomColor: theme.border }}>
           {user.photoURL ? (
             <img src={user.photoURL} alt={user.displayName || 'User'} style={styles.avatar} />
           ) : (
-            <div style={styles.avatarFallback}>{initial}</div>
+            <div style={{ ...styles.avatarFallback, background: theme.accent }}>{initial}</div>
           )}
-          <span style={styles.userName}>{user.displayName || user.email}</span>
+          <span style={{ ...styles.userName, color: theme.text }}>{user.displayName || user.email}</span>
           <button
             onClick={handleSignOut}
             style={{
@@ -74,9 +76,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ user, onNavigateToBoar
           </button>
         </div>
 
-        <h1 style={styles.title}>Whiteboard</h1>
-        <p style={styles.tagline}>Where ideas meet the wall.</p>
-        <p style={styles.subtitle}>Create a new board or join an existing one</p>
+        <h1 style={{ ...styles.title, color: theme.text }}>Whiteboard</h1>
+        <p style={{ ...styles.tagline, color: theme.accent }}>Where ideas meet the wall.</p>
+        <p style={{ ...styles.subtitle, color: theme.textSecondary }}>Create a new board or join an existing one</p>
 
         <button
           onClick={handleCreateBoard}
@@ -91,18 +93,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ user, onNavigateToBoar
         </button>
 
         <div style={styles.dividerRow}>
-          <div style={styles.dividerLine} />
-          <span style={styles.dividerText}>or</span>
-          <div style={styles.dividerLine} />
+          <div style={{ ...styles.dividerLine, background: theme.border }} />
+          <span style={{ ...styles.dividerText, color: theme.textMuted }}>or</span>
+          <div style={{ ...styles.dividerLine, background: theme.border }} />
         </div>
 
         <div style={styles.joinRow}>
           <input
             style={{
               ...styles.joinInput,
-              ...(inputFocused
-                ? { borderColor: '#667eea', boxShadow: '0 0 0 3px rgba(102,126,234,0.15)' }
-                : {}),
+              background: theme.inputBg,
+              color: theme.text,
+              borderColor: inputFocused ? theme.accent : theme.border,
+              boxShadow: inputFocused ? `0 0 0 3px ${isDark ? 'rgba(129,140,248,0.2)' : 'rgba(102,126,234,0.15)'}` : 'none',
             }}
             type="text"
             placeholder="Paste board URL or ID"
@@ -117,7 +120,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ user, onNavigateToBoar
             onClick={handleJoinBoard}
             style={{
               ...styles.joinButton,
-              ...(hoveredBtn === 'join' ? { background: '#3b78e7' } : {}),
+              background: theme.accent,
+              ...(hoveredBtn === 'join' ? { background: theme.accentHover } : {}),
             }}
             onMouseEnter={() => setHoveredBtn('join')}
             onMouseLeave={() => setHoveredBtn(null)}
@@ -125,7 +129,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ user, onNavigateToBoar
             Join
           </button>
         </div>
-        {error && <p role="alert" style={styles.error}>{error}</p>}
+        {error && <p role="alert" style={{ ...styles.error, color: isDark ? '#fca5a5' : '#dc2626' }}>{error}</p>}
       </div>
     </div>
   );
@@ -137,13 +141,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'center',
     alignItems: 'center',
     height: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
   },
   card: {
-    background: 'white',
     padding: '40px',
     borderRadius: '12px',
-    boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
     maxWidth: '440px',
     width: '90%',
   },
@@ -153,7 +154,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '10px',
     marginBottom: '24px',
     paddingBottom: '16px',
-    borderBottom: '1px solid #e5e7eb',
+    borderBottom: '1px solid',
   },
   avatar: {
     width: '32px',
@@ -164,7 +165,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: '32px',
     height: '32px',
     borderRadius: '50%',
-    background: '#667eea',
     color: 'white',
     display: 'flex',
     alignItems: 'center',
@@ -175,7 +175,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   userName: {
     fontSize: '14px',
     fontWeight: 500,
-    color: '#1f2937',
     flex: 1,
   },
   signOutButton: {
@@ -193,21 +192,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '32px',
     fontWeight: 800,
     marginBottom: '4px',
-    color: '#1f2937',
     textAlign: 'center' as const,
     letterSpacing: '-0.5px',
   },
   tagline: {
     fontSize: '15px',
     fontWeight: 500,
-    color: '#667eea',
     textAlign: 'center' as const,
     fontStyle: 'italic',
     marginBottom: '4px',
   },
   subtitle: {
     fontSize: '14px',
-    color: '#6b7280',
     marginBottom: '28px',
     textAlign: 'center' as const,
   },
@@ -232,10 +228,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   dividerLine: {
     flex: 1,
     height: '1px',
-    background: '#e5e7eb',
   },
   dividerText: {
-    color: '#9ca3af',
     fontSize: '13px',
   },
   joinRow: {
@@ -246,7 +240,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     flex: 1,
     padding: '10px 14px',
     fontSize: '14px',
-    border: '2px solid #e5e7eb',
+    border: '2px solid',
     borderRadius: '8px',
     outline: 'none',
     transition: 'border-color 0.2s, box-shadow 0.2s',
@@ -258,13 +252,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 600,
     border: 'none',
     borderRadius: '8px',
-    background: '#667eea',
     color: 'white',
     cursor: 'pointer',
     transition: 'background 0.15s',
   },
   error: {
-    color: '#dc2626',
     fontSize: '13px',
     marginTop: '8px',
   },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { BoardObject, User } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -17,6 +17,25 @@ export const AISuggestButton: React.FC<AISuggestButtonProps> = ({ boardId, user,
   const [hovered, setHovered] = useState(false);
   const { theme } = useTheme();
   const { addNotification } = useNotification();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false); setSuggestions('');
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setOpen(false); setSuggestions(''); }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
 
   const handleSuggest = async () => {
     if (objects.length === 0) {
@@ -81,6 +100,7 @@ export const AISuggestButton: React.FC<AISuggestButtonProps> = ({ boardId, user,
 
       {open && (
         <div
+          ref={panelRef}
           className="animate-popIn"
           role="dialog"
           aria-label="AI Suggestions"
@@ -142,7 +162,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'absolute',
     bottom: 44,
     right: 0,
-    width: 340,
+    width: 'min(340px, calc(100vw - 40px))',
     maxHeight: 400,
     borderRadius: 12,
     border: '1px solid',

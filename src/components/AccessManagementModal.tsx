@@ -172,7 +172,7 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 2500,
   },
   modal: {
-    width: 440,
+    width: 'min(440px, calc(100vw - 32px))',
     maxHeight: '80vh',
     borderRadius: 14,
     display: 'flex',

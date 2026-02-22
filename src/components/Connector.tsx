@@ -1,6 +1,7 @@
 import React from 'react';
 import { Arrow } from 'react-konva';
 import { BoardObject } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ConnectorProps {
   connector: BoardObject;
@@ -18,6 +19,7 @@ function getObjectCenter(obj: BoardObject): { x: number; y: number } | null {
 }
 
 export const Connector: React.FC<ConnectorProps> = ({ connector, objects }) => {
+  const { theme } = useTheme();
   if (!connector.fromId || !connector.toId) return null;
 
   const fromObj = objects.find((o) => o.id === connector.fromId);
@@ -33,9 +35,9 @@ export const Connector: React.FC<ConnectorProps> = ({ connector, objects }) => {
   return (
     <Arrow
       points={[fromCenter.x, fromCenter.y, toCenter.x, toCenter.y]}
-      stroke={connector.color || '#333333'}
+      stroke={connector.color || theme.text}
       strokeWidth={2}
-      fill={connector.color || '#333333'}
+      fill={connector.color || theme.text}
       pointerLength={10}
       pointerWidth={8}
     />

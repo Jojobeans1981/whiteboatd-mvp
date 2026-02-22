@@ -29,8 +29,15 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({ boardId, objectId, u
     const handleClickOutside = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose();
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     window.addEventListener('mousedown', handleClickOutside);
-    return () => window.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,7 +110,7 @@ const styles: Record<string, React.CSSProperties> = {
   panel: {
     position: 'absolute',
     zIndex: 2000,
-    width: 300,
+    width: 'min(300px, calc(100vw - 40px))',
     maxHeight: 380,
     borderRadius: 12,
     display: 'flex',

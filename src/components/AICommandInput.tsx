@@ -37,7 +37,7 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
   const [inputValue, setInputValue] = useState('');
   const [status, setStatus] = useState<AIStatus>('idle');
   const [message, setMessage] = useState('');
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { addNotification } = useNotification();
 
   // Execute operations returned by the AI endpoint against Firestore (in parallel)
@@ -172,19 +172,19 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
       </form>
 
       {status === 'loading' && (
-        <div role="status" style={{ ...styles.statusBar, ...styles.statusLoading }}>
+        <div role="status" style={{ ...styles.statusBar, background: isDark ? '#1e3a5f' : '#eff6ff', color: isDark ? '#93c5fd' : '#1d4ed8' }}>
           AI is working on your request...
         </div>
       )}
 
       {status === 'success' && message && (
-        <div role="status" style={{ ...styles.statusBar, ...styles.statusSuccess }}>
+        <div role="status" style={{ ...styles.statusBar, background: isDark ? '#14532d' : '#f0fdf4', color: isDark ? '#86efac' : '#166534' }}>
           {message}
         </div>
       )}
 
       {status === 'error' && message && (
-        <div role="alert" style={{ ...styles.statusBar, ...styles.statusError }}>
+        <div role="alert" style={{ ...styles.statusBar, background: isDark ? '#3b1c1c' : '#fef2f2', color: isDark ? '#fca5a5' : '#991b1b' }}>
           {message}
         </div>
       )}
@@ -257,16 +257,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '13px',
     textAlign: 'center' as const,
   },
-  statusLoading: {
-    background: '#eff6ff',
-    color: '#1d4ed8',
-  },
-  statusSuccess: {
-    background: '#f0fdf4',
-    color: '#166534',
-  },
-  statusError: {
-    background: '#fef2f2',
-    color: '#991b1b',
-  },
+  statusLoading: {},
+  statusSuccess: {},
+  statusError: {},
 };

@@ -3,6 +3,7 @@
 import React from 'react';
 import { Rect, Text, Group, Circle, Line } from 'react-konva';
 import { StickyNote as StickyNoteType } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface StickyNoteProps {
   sticky: StickyNoteType;
@@ -27,6 +28,8 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
   onTransformEnd,
   onStartEditing,
 }) => {
+  const { theme } = useTheme();
+
   const handleDoubleClick = () => {
     if (onStartEditing) {
       onStartEditing(sticky);
@@ -68,7 +71,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
         shadowOffsetX={2}
         shadowOffsetY={2}
         cornerRadius={5}
-        stroke={isConnectorSource ? '#ff9800' : isSelected ? '#2196f3' : undefined}
+        stroke={isConnectorSource ? '#ff9800' : isSelected ? theme.accent : undefined}
         strokeWidth={isConnectorSource || isSelected ? 3 : 0}
       />
       
@@ -79,7 +82,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
         x={10}
         y={14}
         fontSize={sticky.fontSize || 14}
-        fill="#333"
+        fill="#1a1a1a"
         wrap="word"
         align="left"
         verticalAlign="top"

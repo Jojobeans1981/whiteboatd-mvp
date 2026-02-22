@@ -3,6 +3,7 @@
 import React from 'react';
 import { Rect, Circle, Group } from 'react-konva';
 import { Shape as ShapeType } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ShapeProps {
   shape: ShapeType;
@@ -25,6 +26,8 @@ export const Shape: React.FC<ShapeProps> = ({
   nodeRef,
   onTransformEnd,
 }) => {
+  const { theme } = useTheme();
+
   return (
     <Group
       ref={nodeRef}
@@ -53,7 +56,7 @@ export const Shape: React.FC<ShapeProps> = ({
           shadowOpacity={isSelected ? 0.3 : 0.2}
           shadowOffsetX={2}
           shadowOffsetY={2}
-          stroke={isConnectorSource ? '#ff9800' : isSelected ? '#2196f3' : undefined}
+          stroke={isConnectorSource ? '#ff9800' : isSelected ? theme.accent : undefined}
           strokeWidth={isConnectorSource || isSelected ? 3 : 0}
         />
       ) : (
@@ -65,7 +68,7 @@ export const Shape: React.FC<ShapeProps> = ({
           shadowOpacity={isSelected ? 0.3 : 0.2}
           shadowOffsetX={2}
           shadowOffsetY={2}
-          stroke={isConnectorSource ? '#ff9800' : isSelected ? '#2196f3' : undefined}
+          stroke={isConnectorSource ? '#ff9800' : isSelected ? theme.accent : undefined}
           strokeWidth={isConnectorSource || isSelected ? 3 : 0}
         />
       )}

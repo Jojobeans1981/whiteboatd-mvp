@@ -637,6 +637,23 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
         return;
       }
 
+      // Tool shortcuts (single key, no modifier)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        const toolMap: Record<string, Tool | 'template'> = {
+          v: 'select', s: 'sticky', r: 'rectangle', c: 'circle',
+          t: 'text', f: 'frame', l: 'connector', m: 'template',
+        };
+        const mapped = toolMap[e.key.toLowerCase()];
+        if (mapped && !isViewer) {
+          if (mapped === 'template') {
+            setShowTemplateModal(true);
+          } else {
+            setSelectedTool(mapped);
+          }
+          return;
+        }
+      }
+
       // Delete/Backspace (not for viewers)
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0 && !isViewer) {
         e.preventDefault();
@@ -840,6 +857,15 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
           ))}
         </Layer>
       </Stage>
+
+      {objects.length === 0 && (
+        <div style={styles.emptyState} aria-live="polite">
+          <p style={{ ...styles.emptyTitle, color: theme.textMuted }}>Your board is empty</p>
+          <p style={{ ...styles.emptyHint, color: theme.textMuted }}>
+            {isViewer ? 'Waiting for content...' : 'Click a tool to start creating, or use AI to generate content'}
+          </p>
+        </div>
+      )}
 
       <Toolbar
         selectedTool={selectedTool}
@@ -1279,5 +1305,25 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: 'rgba(0,0,0,0.06)',
     letterSpacing: '0.5px',
     textTransform: 'uppercase' as const,
+  },
+  emptyState: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    textAlign: 'center' as const,
+    pointerEvents: 'none' as const,
+    zIndex: 1,
+  },
+  emptyTitle: {
+    fontSize: '18px',
+    fontWeight: 600,
+    marginBottom: '4px',
+    opacity: 0.6,
+  },
+  emptyHint: {
+    fontSize: '14px',
+    opacity: 0.4,
+    margin: 0,
   },
 };

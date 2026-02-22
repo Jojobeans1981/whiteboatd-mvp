@@ -22,6 +22,8 @@ export const LoginScreen: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
+  const { theme, isDark } = useTheme();
 
   const getErrorMessage = (code: string): string => {
     switch (code) {
@@ -91,22 +93,32 @@ export const LoginScreen: React.FC = () => {
 
   const inputStyle = (field: string): React.CSSProperties => ({
     ...loginStyles.input,
-    ...(focusedField === field
-      ? { borderColor: '#667eea', boxShadow: '0 0 0 3px rgba(102,126,234,0.15)' }
-      : {}),
+    background: theme.inputBg,
+    color: theme.text,
+    borderColor: focusedField === field ? theme.accent : theme.border,
+    boxShadow: focusedField === field ? `0 0 0 3px ${isDark ? 'rgba(129,140,248,0.2)' : 'rgba(102,126,234,0.15)'}` : 'none',
   });
 
   return (
-    <div style={loginStyles.container}>
-      <div style={loginStyles.card}>
-        <h1 style={loginStyles.title}>GAUNTLET AI G4</h1>
-        <p style={loginStyles.tagline}>Collab Board</p>
-        <p style={loginStyles.subtitle}>Where ideas meet the wall.</p>
-        <p style={loginStyles.subtitle}>
+    <div style={{ ...loginStyles.container, background: isDark ? theme.bg : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+      <div style={{ ...loginStyles.card, background: theme.surface, boxShadow: theme.shadowHeavy }}>
+        <h1 style={{ ...loginStyles.title, color: theme.text }}>GAUNTLET AI G4</h1>
+        <p style={{ ...loginStyles.tagline, color: theme.accent }}>Collab Board</p>
+        <p style={{ ...loginStyles.subtitle, color: theme.textSecondary }}>Where ideas meet the wall.</p>
+        <p style={{ ...loginStyles.subtitle, color: theme.textSecondary }}>
           Real-time collaboration for teams that think visually
         </p>
 
-        {error && <div role="alert" style={loginStyles.errorBanner}>{error}</div>}
+        {error && (
+          <div role="alert" style={{
+            ...loginStyles.errorBanner,
+            background: isDark ? '#3b1c1c' : '#fef2f2',
+            color: isDark ? '#fca5a5' : '#991b1b',
+            borderColor: isDark ? '#7f1d1d' : '#fecaca',
+          }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleEmailSubmit} style={loginStyles.form}>
           <input
@@ -144,7 +156,16 @@ export const LoginScreen: React.FC = () => {
               disabled={loading}
             />
           )}
-          <button type="submit" style={loginStyles.submitButton} disabled={loading}>
+          <button
+            type="submit"
+            style={{
+              ...loginStyles.submitButton,
+              ...(hoveredBtn === 'submit' ? { opacity: 0.9 } : {}),
+            }}
+            onMouseEnter={() => setHoveredBtn('submit')}
+            onMouseLeave={() => setHoveredBtn(null)}
+            disabled={loading}
+          >
             {loading
               ? '...'
               : authMode === 'login'
@@ -154,7 +175,7 @@ export const LoginScreen: React.FC = () => {
         </form>
 
         <button
-          style={loginStyles.toggleLink}
+          style={{ ...loginStyles.toggleLink, color: theme.accent }}
           onClick={() => {
             setAuthMode(authMode === 'login' ? 'signup' : 'login');
             setError('');
@@ -166,12 +187,24 @@ export const LoginScreen: React.FC = () => {
         </button>
 
         <div style={loginStyles.dividerRow}>
-          <div style={loginStyles.dividerLine} />
-          <span style={loginStyles.dividerText}>or</span>
-          <div style={loginStyles.dividerLine} />
+          <div style={{ ...loginStyles.dividerLine, background: theme.border }} />
+          <span style={{ ...loginStyles.dividerText, color: theme.textMuted }}>or</span>
+          <div style={{ ...loginStyles.dividerLine, background: theme.border }} />
         </div>
 
-        <button onClick={handleGoogleSignIn} style={loginStyles.googleButton} disabled={loading}>
+        <button
+          onClick={handleGoogleSignIn}
+          style={{
+            ...loginStyles.googleButton,
+            background: theme.surface,
+            color: theme.text,
+            borderColor: theme.border,
+            ...(hoveredBtn === 'google' ? { background: theme.surfaceHover } : {}),
+          }}
+          onMouseEnter={() => setHoveredBtn('google')}
+          onMouseLeave={() => setHoveredBtn(null)}
+          disabled={loading}
+        >
           <span style={loginStyles.googleIcon}>G</span>
           Continue with Google
         </button>
@@ -186,13 +219,10 @@ const loginStyles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'center',
     alignItems: 'center',
     height: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
   },
   card: {
-    background: 'white',
     padding: '40px',
     borderRadius: '12px',
-    boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
     maxWidth: '420px',
     width: '90%',
   },
@@ -200,33 +230,28 @@ const loginStyles: { [key: string]: React.CSSProperties } = {
     fontSize: '36px',
     fontWeight: 800,
     marginBottom: '4px',
-    color: '#1f2937',
     textAlign: 'center' as const,
     letterSpacing: '-0.5px',
   },
   tagline: {
     fontSize: '16px',
     fontWeight: 500,
-    color: '#667eea',
     textAlign: 'center' as const,
     fontStyle: 'italic',
     marginBottom: '4px',
   },
   subtitle: {
     fontSize: '14px',
-    color: '#6b7280',
     textAlign: 'center' as const,
     marginBottom: '24px',
   },
   errorBanner: {
-    color: '#991b1b',
     fontSize: '13px',
     textAlign: 'center' as const,
-    background: '#fef2f2',
     padding: '10px 14px',
     borderRadius: '8px',
     marginBottom: '16px',
-    border: '1px solid #fecaca',
+    border: '1px solid',
   },
   form: {
     display: 'flex',
@@ -237,7 +262,7 @@ const loginStyles: { [key: string]: React.CSSProperties } = {
     width: '100%',
     padding: '12px 16px',
     fontSize: '15px',
-    border: '2px solid #e5e7eb',
+    border: '2px solid',
     borderRadius: '8px',
     outline: 'none',
     boxSizing: 'border-box' as const,
@@ -254,6 +279,7 @@ const loginStyles: { [key: string]: React.CSSProperties } = {
     color: 'white',
     cursor: 'pointer',
     marginTop: '4px',
+    transition: 'opacity 0.15s',
   },
   toggleLink: {
     display: 'block',
@@ -261,7 +287,6 @@ const loginStyles: { [key: string]: React.CSSProperties } = {
     textAlign: 'center' as const,
     background: 'none',
     border: 'none',
-    color: '#667eea',
     fontSize: '14px',
     cursor: 'pointer',
     padding: '12px 0 4px',
@@ -276,10 +301,8 @@ const loginStyles: { [key: string]: React.CSSProperties } = {
   dividerLine: {
     flex: 1,
     height: '1px',
-    background: '#e5e7eb',
   },
   dividerText: {
-    color: '#9ca3af',
     fontSize: '13px',
   },
   googleButton: {
@@ -287,15 +310,14 @@ const loginStyles: { [key: string]: React.CSSProperties } = {
     padding: '12px',
     fontSize: '15px',
     fontWeight: 500,
-    border: '1px solid #dadce0',
+    border: '1px solid',
     borderRadius: '8px',
-    background: 'white',
-    color: '#3c4043',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: '10px',
+    transition: 'background 0.15s',
   },
   googleIcon: {
     fontSize: '18px',
@@ -329,7 +351,7 @@ export const UserBadge: React.FC<UserBadgeProps> = ({ user }) => {
       {user.photoURL ? (
         <img src={user.photoURL} alt={user.displayName || 'User'} style={badgeStyles.avatar} />
       ) : (
-        <div style={badgeStyles.avatarFallback}>{initial}</div>
+        <div style={{ ...badgeStyles.avatarFallback, background: theme.accent }}>{initial}</div>
       )}
       <span style={{ ...badgeStyles.name, color: theme.text }}>{user.displayName || user.email}</span>
       <button
@@ -352,10 +374,8 @@ const badgeStyles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    background: 'white',
     padding: '6px 10px',
     borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
   },
   avatar: {
     width: '28px',
@@ -366,7 +386,6 @@ const badgeStyles: { [key: string]: React.CSSProperties } = {
     width: '28px',
     height: '28px',
     borderRadius: '50%',
-    background: '#667eea',
     color: 'white',
     display: 'flex',
     alignItems: 'center',
@@ -377,7 +396,6 @@ const badgeStyles: { [key: string]: React.CSSProperties } = {
   name: {
     fontSize: '13px',
     fontWeight: 500,
-    color: '#1f2937',
     maxWidth: '120px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
