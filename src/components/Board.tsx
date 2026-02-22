@@ -1135,6 +1135,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
 
       {/* Watermark */}
       <div style={styles.watermark}>GAUNTLET AI G4</div>
+      <div style={{ ...styles.sloganWatermark, color: theme.textMuted }}>Where Ideas Meet the Wall</div>
     </div>
   );
 };
@@ -1214,6 +1215,21 @@ const styles: { [key: string]: React.CSSProperties } = {
     pointerEvents: 'none' as const,
     userSelect: 'none' as const,
     zIndex: 500,
+  },
+  sloganWatermark: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    fontSize: '48px',
+    fontWeight: 800,
+    letterSpacing: '2px',
+    opacity: 0.06,
+    pointerEvents: 'none' as const,
+    userSelect: 'none' as const,
+    zIndex: 1,
+    whiteSpace: 'nowrap' as const,
+    fontStyle: 'italic',
   },
   connectorHint: {
     position: 'absolute',
