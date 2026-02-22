@@ -742,7 +742,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds, connectorFrom, boardId, objects, undo, redo, pushAction, user.uid, deleteObject, showTemplateModal, templateLoading]);
+  }, [selectedIds, connectorFrom, boardId, objects, undo, redo, pushAction, user.uid, deleteObject, showTemplateModal, templateLoading, isViewer]);
 
   return (
     <div style={{ ...styles.container, background: theme.canvasBg }}>
