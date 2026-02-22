@@ -1218,7 +1218,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   sloganWatermark: {
     position: 'absolute',
-    top: '50%',
+    top: '56%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
     fontSize: '48px',
@@ -1324,12 +1324,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   emptyState: {
     position: 'absolute',
-    top: '50%',
+    top: '38%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
     textAlign: 'center' as const,
     pointerEvents: 'none' as const,
-    zIndex: 1,
+    zIndex: 2,
   },
   emptyTitle: {
     fontSize: '18px',
