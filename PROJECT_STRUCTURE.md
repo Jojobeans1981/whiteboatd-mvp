@@ -53,9 +53,18 @@ whiteboard-mvp/
 - Color-coded per user
 
 **Toolbar.tsx**
-- Tool selection (select, sticky, shapes)
+- Tool selection (select, sticky, shapes, text, frame, connector, templates)
 - Color picker
+- Font size controls for selected objects
+- Export (PNG/PDF) and organization (Tidy/Sort) buttons
 - Keyboard shortcuts hints
+
+**TemplateModal.tsx**
+- Modal overlay with 5 AI-powered template cards
+- Templates: SWOT Analysis, Kanban Board, Retrospective, User Journey Map, Mind Map
+- Sends pre-built prompt to AI endpoint on selection
+- Loading state with visual feedback
+- Theme-aware styling
 
 **PresenceIndicator.tsx**
 - Online user list (top-right)
@@ -110,6 +119,9 @@ whiteboard-mvp/
 - `BoardObject` - Base interface for all objects
 - `StickyNote` - Sticky note specific fields
 - `Shape` - Rectangle/circle specific fields
+- `FrameObject` - Frame/container specific fields
+- `ConnectorObject` - Connector/arrow specific fields
+- `TextObject` - Standalone text specific fields
 - `CursorPosition` - Cursor data structure
 - `UserPresence` - Online user data
 - `User` - Authenticated user info
@@ -326,17 +338,26 @@ const BOARD_ID = 'demo-board-1'; // Change to 'room-abc' etc.
 
 ---
 
-## 🎯 Next Steps After MVP
+## 🤖 AI Agent Integration
 
-To add AI agent (Phase 2):
-1. Create `/functions` folder for Cloud Functions
-2. Add Claude API integration
-3. Add command parser
-4. Add tool functions (createStickyNote, moveObject, etc.)
-5. Update Board.tsx to handle AI-generated objects
+The AI agent is fully implemented:
+
+- **`api/ai.ts`** — Vercel serverless function with Google Gemini integration (14 tools, multi-turn tool use loop, 3-model fallback chain)
+- **`src/components/AICommandInput.tsx`** — Floating AI command input bar at bottom of board
+- **`src/components/TemplateModal.tsx`** — Template selection modal (5 AI-powered templates: SWOT, Kanban, Retro, Journey Map, Mind Map)
+
+### AI-Powered Template Flow
+
+1. User clicks Templates button in toolbar
+2. Modal shows 5 template cards
+3. User selects a template
+4. Pre-built prompt sent to `/api/ai` endpoint
+5. Gemini generates board layout via function calling
+6. Operations returned to client and executed against Firestore
+7. Board objects appear in real-time
 
 ---
 
-**This is your complete MVP codebase!** 
+**This is your complete MVP codebase!**
 
-Everything is set up and ready. Just add your Firebase config and deploy! 🚀
+Everything is set up and ready. Just add your Firebase config and deploy!

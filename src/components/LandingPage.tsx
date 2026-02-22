@@ -106,6 +106,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ user, onNavigateToBoar
             }}
             type="text"
             placeholder="Paste board URL or ID"
+            aria-label="Board URL or ID"
             value={joinInput}
             onChange={(e) => setJoinInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleJoinBoard()}
@@ -124,7 +125,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ user, onNavigateToBoar
             Join
           </button>
         </div>
-        {error && <p style={styles.error}>{error}</p>}
+        {error && <p role="alert" style={styles.error}>{error}</p>}
       </div>
     </div>
   );

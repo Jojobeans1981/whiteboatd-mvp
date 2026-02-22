@@ -7,7 +7,10 @@ interface ContextMenuProps {
   onEdit: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onComment?: () => void;
+  onReact?: () => void;
   onClose: () => void;
+  isReadOnly?: boolean;
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -16,7 +19,10 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onEdit,
   onDelete,
   onDuplicate,
+  onComment,
+  onReact,
   onClose,
+  isReadOnly,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -28,14 +34,25 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         onClose();
       }
     };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const items = menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]');
+        if (!items || items.length === 0) return;
+        const idx = Array.from(items).indexOf(document.activeElement as HTMLElement);
+        const next = e.key === 'ArrowDown' ? (idx + 1) % items.length : (idx - 1 + items.length) % items.length;
+        items[next].focus();
+      }
     };
+    // Focus first item on mount
+    const items = menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]');
+    if (items && items.length > 0) items[0].focus();
     window.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('keydown', handleEscape);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);
 
@@ -65,32 +82,65 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   });
 
   return (
-    <div ref={menuRef} style={{ ...styles.menu, left: x, top: y, background: theme.surface, boxShadow: theme.shadowHeavy }}>
-      <button
-        style={getItemStyle('edit')}
-        onClick={onEdit}
-        onMouseEnter={() => setHoveredItem('edit')}
-        onMouseLeave={() => setHoveredItem(null)}
-      >
-        Edit
-      </button>
-      <button
-        style={getItemStyle('duplicate')}
-        onClick={onDuplicate}
-        onMouseEnter={() => setHoveredItem('duplicate')}
-        onMouseLeave={() => setHoveredItem(null)}
-      >
-        Duplicate
-      </button>
-      <div style={{ ...styles.divider, background: theme.border }} />
-      <button
-        style={getItemStyle('delete', true)}
-        onClick={onDelete}
-        onMouseEnter={() => setHoveredItem('delete')}
-        onMouseLeave={() => setHoveredItem(null)}
-      >
-        Delete
-      </button>
+    <div ref={menuRef} role="menu" className="animate-popIn" style={{ ...styles.menu, left: x, top: y, background: theme.surface, boxShadow: theme.shadowHeavy }}>
+      {!isReadOnly && (
+        <button
+          role="menuitem"
+          style={getItemStyle('edit')}
+          onClick={onEdit}
+          onMouseEnter={() => setHoveredItem('edit')}
+          onMouseLeave={() => setHoveredItem(null)}
+        >
+          Edit
+        </button>
+      )}
+      {!isReadOnly && (
+        <button
+          role="menuitem"
+          style={getItemStyle('duplicate')}
+          onClick={onDuplicate}
+          onMouseEnter={() => setHoveredItem('duplicate')}
+          onMouseLeave={() => setHoveredItem(null)}
+        >
+          Duplicate
+        </button>
+      )}
+      {onComment && (
+        <button
+          role="menuitem"
+          style={getItemStyle('comment')}
+          onClick={onComment}
+          onMouseEnter={() => setHoveredItem('comment')}
+          onMouseLeave={() => setHoveredItem(null)}
+        >
+          Comments
+        </button>
+      )}
+      {onReact && (
+        <button
+          role="menuitem"
+          style={getItemStyle('react')}
+          onClick={onReact}
+          onMouseEnter={() => setHoveredItem('react')}
+          onMouseLeave={() => setHoveredItem(null)}
+        >
+          React
+        </button>
+      )}
+      {!isReadOnly && (
+        <>
+          <div style={{ ...styles.divider, background: theme.border }} />
+          <button
+            role="menuitem"
+            style={getItemStyle('delete', true)}
+            onClick={onDelete}
+            onMouseEnter={() => setHoveredItem('delete')}
+            onMouseLeave={() => setHoveredItem(null)}
+          >
+            Delete
+          </button>
+        </>
+      )}
     </div>
   );
 };

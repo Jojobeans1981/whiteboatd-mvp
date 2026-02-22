@@ -106,12 +106,13 @@ export const LoginScreen: React.FC = () => {
           Real-time collaboration for teams that think visually
         </p>
 
-        {error && <div style={loginStyles.errorBanner}>{error}</div>}
+        {error && <div role="alert" style={loginStyles.errorBanner}>{error}</div>}
 
         <form onSubmit={handleEmailSubmit} style={loginStyles.form}>
           <input
             type="email"
             placeholder="Email address"
+            aria-label="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onFocus={() => setFocusedField('email')}
@@ -122,6 +123,7 @@ export const LoginScreen: React.FC = () => {
           <input
             type="password"
             placeholder="Password"
+            aria-label="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onFocus={() => setFocusedField('password')}
@@ -133,6 +135,7 @@ export const LoginScreen: React.FC = () => {
             <input
               type="password"
               placeholder="Confirm password"
+              aria-label="Confirm password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               onFocus={() => setFocusedField('confirm')}

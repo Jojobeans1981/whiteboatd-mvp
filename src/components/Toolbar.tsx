@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { BoardObject } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
+import { Tooltip } from './Tooltip';
 
 export type Tool = 'select' | 'sticky' | 'rectangle' | 'circle' | 'text' | 'frame' | 'connector';
 
@@ -17,6 +18,8 @@ interface ToolbarProps {
   onUpdateObject?: (updates: Partial<BoardObject>) => void;
   onAutoGrid?: () => void;
   onGroupByColor?: () => void;
+  onTemplateClick?: () => void;
+  isReadOnly?: boolean;
 }
 
 const colors = ['#FFE066', '#FF6B6B', '#4ECDC4', '#45B7D1', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3'];
@@ -47,6 +50,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onUpdateObject,
   onAutoGrid,
   onGroupByColor,
+  onTemplateClick,
+  isReadOnly,
 }) => {
   const [hovered, setHovered] = useState<string | null>(null);
   const { theme } = useTheme();
@@ -67,12 +72,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     onUpdateObject({ fontSize: newSize, updatedAt: Date.now() });
   };
 
-  const getToolBtnStyle = (tool: Tool): React.CSSProperties => ({
+  const getToolBtnStyle = (tool: Tool, readOnlyDisabled?: boolean): React.CSSProperties => ({
     ...styles.toolButton,
     background: theme.bg,
     ...(selectedTool === tool ? { background: theme.surfaceActive, borderColor: theme.accent } : {}),
     ...(hovered === tool && selectedTool !== tool ? { background: theme.surfaceHover } : {}),
     ...(hovered === tool && selectedTool === tool ? { background: theme.surfaceActive } : {}),
+    ...(readOnlyDisabled ? { opacity: 0.4, cursor: 'not-allowed' } : {}),
   });
 
   const getSmallBtnStyle = (id: string): React.CSSProperties => ({
@@ -83,47 +89,55 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   });
 
   return (
-    <div style={{ ...styles.toolbar, background: theme.surface, boxShadow: theme.shadowHeavy }}>
+    <div role="toolbar" aria-label="Drawing tools" style={{ ...styles.toolbar, background: theme.surface, boxShadow: theme.shadowHeavy }}>
       <div style={styles.section}>
-        {tools.map((t) => (
-          <button
-            key={t.id}
-            style={getToolBtnStyle(t.id as Tool)}
-            onClick={() => {
-              if (t.id === 'template') {
-                // Open template selection modal or trigger AI template generation
-                alert('Templates feature coming soon!');
-                return;
-              }
-              onToolChange(t.id as Tool);
-            }}
-            onMouseEnter={() => setHovered(t.id)}
-            onMouseLeave={() => setHovered(null)}
-            title={`${t.label} (${t.shortcut})`}
-          >
-            <span style={styles.toolIcon}>{t.icon}</span>
-            <span style={{ ...styles.toolLabel, color: theme.textMuted }}>{t.label}</span>
-          </button>
-        ))}
+        {tools.map((t) => {
+          const isCreationTool = t.id !== 'select';
+          const readOnlyDisabled = isReadOnly && isCreationTool;
+          return (
+          <Tooltip key={t.id} content={readOnlyDisabled ? `${t.label} (view-only)` : t.label} shortcut={readOnlyDisabled ? undefined : t.shortcut}>
+            <button
+              style={getToolBtnStyle(t.id as Tool, readOnlyDisabled)}
+              onClick={() => {
+                if (readOnlyDisabled) return;
+                if (t.id === 'template') {
+                  onTemplateClick?.();
+                  return;
+                }
+                onToolChange(t.id as Tool);
+              }}
+              onMouseEnter={() => setHovered(t.id)}
+              onMouseLeave={() => setHovered(null)}
+              aria-label={t.label}
+              aria-pressed={selectedTool === t.id}
+              aria-disabled={readOnlyDisabled}
+            >
+              <span style={styles.toolIcon} aria-hidden="true">{t.icon}</span>
+              <span style={{ ...styles.toolLabel, color: theme.textMuted }}>{t.label}</span>
+            </button>
+          </Tooltip>
+          );
+        })}
       </div>
 
       <div style={{ ...styles.divider, background: theme.border }} />
 
       <div style={styles.section}>
         {colors.map((color) => (
-          <button
-            key={color}
-            style={{
-              ...styles.colorButton,
-              backgroundColor: color,
-              ...(selectedColor === color ? { borderColor: theme.text, transform: 'scale(1.1)' } : {}),
-              ...(hovered === `c-${color}` ? { transform: 'scale(1.15)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' } : {}),
-            }}
-            onClick={() => handleColorClick(color)}
-            onMouseEnter={() => setHovered(`c-${color}`)}
-            onMouseLeave={() => setHovered(null)}
-            title={color}
-          />
+          <Tooltip key={color} content={color}>
+            <button
+              style={{
+                ...styles.colorButton,
+                backgroundColor: color,
+                ...(selectedColor === color ? { borderColor: theme.text, transform: 'scale(1.1)' } : {}),
+                ...(hovered === `c-${color}` ? { transform: 'scale(1.15)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' } : {}),
+              }}
+              onClick={() => handleColorClick(color)}
+              onMouseEnter={() => setHovered(`c-${color}`)}
+              onMouseLeave={() => setHovered(null)}
+              aria-label={`Color ${color}`}
+            />
+          </Tooltip>
         ))}
       </div>
 
@@ -131,27 +145,31 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <>
           <div style={{ ...styles.divider, background: theme.border }} />
           <div style={styles.section}>
-            <button
-              style={getSmallBtnStyle('font-down')}
-              onClick={() => handleFontSizeChange(-FONT_STEP)}
-              onMouseEnter={() => setHovered('font-down')}
-              onMouseLeave={() => setHovered(null)}
-              title="Decrease font size"
-              disabled={currentFontSize <= MIN_FONT}
-            >
-              A-
-            </button>
+            <Tooltip content="Decrease font">
+              <button
+                style={getSmallBtnStyle('font-down')}
+                onClick={() => handleFontSizeChange(-FONT_STEP)}
+                onMouseEnter={() => setHovered('font-down')}
+                onMouseLeave={() => setHovered(null)}
+                aria-label="Decrease font size"
+                disabled={currentFontSize <= MIN_FONT}
+              >
+                A-
+              </button>
+            </Tooltip>
             <span style={{ ...styles.fontSizeLabel, color: theme.textSecondary }}>{currentFontSize}px</span>
-            <button
-              style={getSmallBtnStyle('font-up')}
-              onClick={() => handleFontSizeChange(FONT_STEP)}
-              onMouseEnter={() => setHovered('font-up')}
-              onMouseLeave={() => setHovered(null)}
-              title="Increase font size"
-              disabled={currentFontSize >= MAX_FONT}
-            >
-              A+
-            </button>
+            <Tooltip content="Increase font">
+              <button
+                style={getSmallBtnStyle('font-up')}
+                onClick={() => handleFontSizeChange(FONT_STEP)}
+                onMouseEnter={() => setHovered('font-up')}
+                onMouseLeave={() => setHovered(null)}
+                aria-label="Increase font size"
+                disabled={currentFontSize >= MAX_FONT}
+              >
+                A+
+              </button>
+            </Tooltip>
           </div>
         </>
       )}
@@ -159,47 +177,55 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       <div style={{ ...styles.divider, background: theme.border }} />
 
       <div style={styles.section}>
-        <button
-          style={getSmallBtnStyle('png')}
-          onClick={onExportPNG}
-          onMouseEnter={() => setHovered('png')}
-          onMouseLeave={() => setHovered(null)}
-          title="Export as PNG image"
-        >
-          ⬇ PNG
-        </button>
-        <button
-          style={getSmallBtnStyle('pdf')}
-          onClick={onExportPDF}
-          onMouseEnter={() => setHovered('pdf')}
-          onMouseLeave={() => setHovered(null)}
-          title="Export as PDF document"
-        >
-          ⬇ PDF
-        </button>
+        <Tooltip content="Export as PNG">
+          <button
+            style={getSmallBtnStyle('png')}
+            onClick={onExportPNG}
+            onMouseEnter={() => setHovered('png')}
+            onMouseLeave={() => setHovered(null)}
+            aria-label="Export as PNG image"
+          >
+            <span aria-hidden="true">⬇</span> PNG
+          </button>
+        </Tooltip>
+        <Tooltip content="Export as PDF">
+          <button
+            style={getSmallBtnStyle('pdf')}
+            onClick={onExportPDF}
+            onMouseEnter={() => setHovered('pdf')}
+            onMouseLeave={() => setHovered(null)}
+            aria-label="Export as PDF document"
+          >
+            <span aria-hidden="true">⬇</span> PDF
+          </button>
+        </Tooltip>
       </div>
 
       <div style={{ ...styles.divider, background: theme.border }} />
 
       <div style={styles.section}>
-        <button
-          style={getSmallBtnStyle('grid')}
-          onClick={onAutoGrid}
-          onMouseEnter={() => setHovered('grid')}
-          onMouseLeave={() => setHovered(null)}
-          title="Auto-arrange objects in a grid"
-        >
-          ⊞ Tidy
-        </button>
-        <button
-          style={getSmallBtnStyle('group')}
-          onClick={onGroupByColor}
-          onMouseEnter={() => setHovered('group')}
-          onMouseLeave={() => setHovered(null)}
-          title="Sort objects by color"
-        >
-          🎨 Sort
-        </button>
+        <Tooltip content="Auto-arrange in grid">
+          <button
+            style={getSmallBtnStyle('grid')}
+            onClick={onAutoGrid}
+            onMouseEnter={() => setHovered('grid')}
+            onMouseLeave={() => setHovered(null)}
+            aria-label="Auto-arrange objects in a grid"
+          >
+            <span aria-hidden="true">⊞</span> Tidy
+          </button>
+        </Tooltip>
+        <Tooltip content="Sort by color">
+          <button
+            style={getSmallBtnStyle('group')}
+            onClick={onGroupByColor}
+            onMouseEnter={() => setHovered('group')}
+            onMouseLeave={() => setHovered(null)}
+            aria-label="Sort objects by color"
+          >
+            <span aria-hidden="true">🎨</span> Sort
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

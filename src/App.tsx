@@ -4,9 +4,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { LoginScreen } from './components/Auth';
 import { Board } from './components/Board';
 import { LandingPage } from './components/LandingPage';
+import { ToastContainer } from './components/ToastContainer';
 
 function getBoardIdFromURL(): string | null {
   const params = new URLSearchParams(window.location.search);
@@ -54,7 +56,10 @@ function App() {
 
   return (
     <ThemeProvider>
-      <Board boardId={boardId} user={user} onBackToLanding={navigateToLanding} />
+      <NotificationProvider>
+        <Board boardId={boardId} user={user} onBackToLanding={navigateToLanding} />
+        <ToastContainer />
+      </NotificationProvider>
     </ThemeProvider>
   );
 }

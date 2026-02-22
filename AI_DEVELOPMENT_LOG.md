@@ -471,3 +471,40 @@ Added two layout algorithms and corresponding AI tools:
 **Total AI tools: 14** (was 12)
 
 Updated system prompt with instructions for organize and font size commands.
+
+### Template Selection Modal (AI-Powered)
+
+Added a Templates toolbar button that opens a modal with 5 pre-built template options. Selecting a template sends a pre-built prompt to the existing Gemini AI endpoint, which generates the full board layout.
+
+**Templates (Core Set of 5):**
+
+| Template | Prompt Sent to AI | Layout |
+|----------|-------------------|--------|
+| SWOT Analysis | "Create a SWOT analysis template" | 4 frames in 2x2 grid + starter stickies |
+| Kanban Board | "Create a Kanban board with To Do, In Progress, and Done columns with sample tasks" | 3-column workflow |
+| Retrospective | "Create a retrospective board with What Went Well, What To Improve, and Action Items columns" | 3-column retro board |
+| User Journey Map | "Create a user journey map with Awareness, Consideration, Decision, Onboarding, and Retention stages" | Horizontal stage frames |
+| Mind Map | "Create a mind map with a central topic and 5 branching ideas using sticky notes and connectors" | Central node with radial branches |
+
+**Implementation:**
+
+Files created:
+- `src/components/TemplateModal.tsx` — Modal overlay with template card grid, loading state, theme support
+
+Files modified:
+- `src/components/Toolbar.tsx` — Added `onTemplateClick` prop; replaced placeholder `alert()` with callback
+- `src/components/Board.tsx` — Added `showTemplateModal`/`templateLoading` state, `handleTemplateSelect()` handler that calls `POST /api/ai` and executes returned operations against Firestore, Escape key closes modal
+
+**Architecture decision:** Reuses the existing AI endpoint (`/api/ai`) rather than hardcoding static template layouts. This means:
+- Templates are dynamic and benefit from AI spatial reasoning
+- No new backend code required — zero API changes
+- The same model fallback chain (Gemini 2.5 → 2.0 → 1.5) handles rate limits
+- Templates can be improved by updating the system prompt alone, no code changes needed
+
+**UX flow:**
+1. User clicks 📋 Templates button in toolbar (or presses M)
+2. Modal appears with 5 template cards (icon, title, description)
+3. User clicks a card → loading state shown ("Generating..." badge on selected card, others dimmed)
+4. AI generates layout → operations executed against Firestore → objects appear on board
+5. Modal closes automatically on success
+6. Escape key or backdrop click closes modal (disabled during loading)

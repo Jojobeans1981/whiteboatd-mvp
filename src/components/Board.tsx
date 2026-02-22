@@ -19,11 +19,20 @@ import { ContextMenu } from './ContextMenu';
 import { Toolbar, Tool } from './Toolbar';
 import { PresenceIndicator } from './PresenceIndicator';
 import { AICommandInput } from './AICommandInput';
+import { TemplateModal } from './TemplateModal';
+import { AISuggestButton } from './AISuggestButton';
+import { SaveTemplateModal } from './SaveTemplateModal';
+import { CommentPanel } from './CommentPanel';
+import { ReactionPicker } from './ReactionPicker';
+import { AccessManagementModal } from './AccessManagementModal';
 import { UserBadge } from './Auth';
 import { BoardObject, User } from '../types';
 import { generateId, getUserColor, getUserDisplayName } from '../lib/utils';
 import { autoGridLayout, groupByColorLayout } from '../lib/layoutUtils';
+import { useUserTemplates } from '../hooks/useUserTemplates';
+import { useBoardMetadata } from '../hooks/useBoardMetadata';
 import { useTheme } from '../contexts/ThemeContext';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface EditingState {
   id: string;
@@ -55,8 +64,15 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; objectId: string } | null>(null);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateLoading, setTemplateLoading] = useState(false);
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [commentPanel, setCommentPanel] = useState<{ objectId: string; x: number; y: number } | null>(null);
+  const [reactionPicker, setReactionPicker] = useState<{ objectId: string; x: number; y: number } | null>(null);
+  const [showAccessModal, setShowAccessModal] = useState(false);
   const { theme, isDark, toggleTheme } = useTheme();
+  const { addNotification } = useNotification();
 
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
@@ -66,6 +82,12 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
   const { pushAction, undo, redo } = useUndoRedo();
   const cursors = useCursors(boardId, user.uid);
   const onlineUsers = usePresence(boardId);
+  const { templates: userTemplates, saveTemplate, deleteTemplate } = useUserTemplates(user.uid);
+  const { metadata: boardMetadata, role: userRole, addMember, removeMember, changeMemberRole } = useBoardMetadata(
+    boardId, user.uid, getUserDisplayName(user.email, user.displayName), user.email || ''
+  );
+  const isViewer = userRole === 'viewer';
+  const isOwner = userRole === 'owner';
 
   // Update presence
   React.useEffect(() => {
@@ -154,7 +176,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
       setConnectorFrom(null);
 
       // Create object if a tool is selected (not connector — connector needs object clicks)
-      if (selectedTool !== 'select' && selectedTool !== 'connector') {
+      if (selectedTool !== 'select' && selectedTool !== 'connector' && !isViewer) {
         const stage = e.target.getStage();
         const point = stage.getPointerPosition();
         const x = (point.x - stagePos.x) / stageScale;
@@ -252,14 +274,18 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
       };
     }
 
-    await setDoc(objectRef, objectData);
-    pushAction({
-      type: 'create',
-      objectId,
-      before: null,
-      after: objectData,
-      fullObject: { id: objectId, ...objectData },
-    });
+    try {
+      await setDoc(objectRef, objectData);
+      pushAction({
+        type: 'create',
+        objectId,
+        before: null,
+        after: objectData,
+        fullObject: { id: objectId, ...objectData },
+      });
+    } catch (err) {
+      addNotification('Failed to create object', 'error');
+    }
   };
 
   const updateObject = useCallback(async (id: string, updates: Partial<BoardObject>) => {
@@ -272,9 +298,13 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
         after: updates,
       });
     }
-    const objectRef = doc(db, 'boards', boardId, 'objects', id);
-    await updateDoc(objectRef, updates);
-  }, [objects, boardId, pushAction]);
+    try {
+      const objectRef = doc(db, 'boards', boardId, 'objects', id);
+      await updateDoc(objectRef, updates);
+    } catch (err) {
+      addNotification('Failed to update object', 'error');
+    }
+  }, [objects, boardId, pushAction, addNotification]);
 
   const deleteObject = useCallback(async (id: string) => {
     const current = objects.find((o) => o.id === id);
@@ -287,10 +317,14 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
         fullObject: { ...current },
       });
     }
-    const objectRef = doc(db, 'boards', boardId, 'objects', id);
-    await deleteDoc(objectRef);
-    setSelectedIds((prev) => prev.filter((sid) => sid !== id));
-  }, [objects, boardId, pushAction]);
+    try {
+      const objectRef = doc(db, 'boards', boardId, 'objects', id);
+      await deleteDoc(objectRef);
+      setSelectedIds((prev) => prev.filter((sid) => sid !== id));
+    } catch (err) {
+      addNotification('Failed to delete object', 'error');
+    }
+  }, [objects, boardId, pushAction, addNotification]);
 
   // Attach Transformer to selected nodes (multi-select)
   useEffect(() => {
@@ -440,8 +474,10 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     navigator.clipboard.writeText(url).then(() => {
       setShowCopiedToast(true);
       setTimeout(() => setShowCopiedToast(false), 2000);
+    }).catch(() => {
+      addNotification('Failed to copy link', 'error');
     });
-  }, [boardId]);
+  }, [boardId, addNotification]);
 
   // Update selected object from toolbar
   const handleUpdateSelectedObject = useCallback((updates: Partial<BoardObject>) => {
@@ -465,6 +501,75 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
       moves.map((m) => updateObject(m.id, { x: m.x, y: m.y, updatedAt: Date.now() }))
     );
   }, [objects, updateObject]);
+
+  // Generate template via AI
+  const handleTemplateSelect = useCallback(async (prompt: string) => {
+    setTemplateLoading(true);
+    try {
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command: prompt,
+          boardId,
+          boardState: objects,
+          userId: user.uid,
+          userName: user.displayName || user.email || 'Anonymous',
+        }),
+      });
+      const data = await response.json();
+      if (data.success && data.operations) {
+        await Promise.all(data.operations.map((op: any) => {
+          if (op.action === 'create') {
+            return setDoc(doc(db, 'boards', boardId, 'objects', op.id), op.data);
+          } else if (op.action === 'update') {
+            return updateDoc(doc(db, 'boards', boardId, 'objects', op.objectId), op.data);
+          } else {
+            return deleteDoc(doc(db, 'boards', boardId, 'objects', op.objectId));
+          }
+        }));
+        setShowTemplateModal(false);
+      }
+    } catch (err) {
+      addNotification('Template generation failed', 'error');
+    } finally {
+      setTemplateLoading(false);
+    }
+  }, [boardId, objects, user, addNotification]);
+
+  // Apply a user-saved template to the board
+  const handleUserTemplateApply = useCallback(async (templateObjects: Omit<BoardObject, 'id'>[]) => {
+    try {
+      const centerX = 200;
+      const centerY = 200;
+      await Promise.all(templateObjects.map((obj) => {
+        const newId = generateId();
+        const objectRef = doc(db, 'boards', boardId, 'objects', newId);
+        return setDoc(objectRef, {
+          ...obj,
+          x: obj.x + centerX,
+          y: obj.y + centerY,
+          createdBy: user.uid,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }));
+      addNotification(`Applied template (${templateObjects.length} objects)`, 'success');
+    } catch {
+      addNotification('Failed to apply template', 'error');
+    }
+  }, [boardId, user.uid, addNotification]);
+
+  // Save current board as a user template
+  const handleSaveTemplate = useCallback(async (name: string, description: string) => {
+    try {
+      await saveTemplate(name, description, objects);
+      setShowSaveTemplateModal(false);
+      addNotification(`Template "${name}" saved`, 'success');
+    } catch {
+      addNotification('Failed to save template', 'error');
+    }
+  }, [objects, saveTemplate, addNotification]);
 
   // Create connector between two objects
   const createConnector = useCallback(async (fromId: string, toId: string) => {
@@ -520,9 +625,11 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-      // Escape - cancel connector or deselect
+      // Escape - close template modal, cancel connector, or deselect
       if (e.key === 'Escape') {
-        if (connectorFrom) {
+        if (showTemplateModal) {
+          if (!templateLoading) setShowTemplateModal(false);
+        } else if (connectorFrom) {
           setConnectorFrom(null);
         } else {
           setSelectedIds([]);
@@ -530,8 +637,8 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
         return;
       }
 
-      // Delete/Backspace
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0) {
+      // Delete/Backspace (not for viewers)
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0 && !isViewer) {
         e.preventDefault();
         const toDelete = [...selectedIds];
         setSelectedIds([]);
@@ -618,7 +725,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds, connectorFrom, boardId, objects, undo, redo, pushAction, user.uid, deleteObject]);
+  }, [selectedIds, connectorFrom, boardId, objects, undo, redo, pushAction, user.uid, deleteObject, showTemplateModal, templateLoading]);
 
   return (
     <div style={{ ...styles.container, background: theme.canvasBg }}>
@@ -713,18 +820,20 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
               }
             })}
 
-          <Transformer
-            ref={transformerRef}
-            rotateEnabled={true}
-            borderStroke="#667eea"
-            anchorStroke="#667eea"
-            anchorFill="white"
-            anchorSize={8}
-            boundBoxFunc={(oldBox, newBox) => {
-              if (newBox.width < 20 || newBox.height < 20) return oldBox;
-              return newBox;
-            }}
-          />
+          {!isViewer && (
+            <Transformer
+              ref={transformerRef}
+              rotateEnabled={true}
+              borderStroke="#667eea"
+              anchorStroke="#667eea"
+              anchorFill="white"
+              anchorSize={8}
+              boundBoxFunc={(oldBox, newBox) => {
+                if (newBox.width < 20 || newBox.height < 20) return oldBox;
+                return newBox;
+              }}
+            />
+          )}
 
           {cursors.map((cursor) => (
             <Cursor key={cursor.userId} cursor={cursor} />
@@ -743,6 +852,8 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
         onUpdateObject={handleUpdateSelectedObject}
         onAutoGrid={handleAutoGrid}
         onGroupByColor={handleGroupByColor}
+        onTemplateClick={() => setShowTemplateModal(true)}
+        isReadOnly={isViewer}
       />
 
       {/* Top-right bar */}
@@ -759,7 +870,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
             onClick={onBackToLanding}
             onMouseEnter={() => setHoveredBtn('back')}
             onMouseLeave={() => setHoveredBtn(null)}
-            title="Back to boards"
+            aria-label="Back to boards"
           >
             ← Boards
           </button>
@@ -773,7 +884,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
           onClick={handleShareLink}
           onMouseEnter={() => setHoveredBtn('share')}
           onMouseLeave={() => setHoveredBtn(null)}
-          title="Copy share link"
+          aria-label="Copy share link"
         >
           Share
         </button>
@@ -788,20 +899,40 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
           onClick={toggleTheme}
           onMouseEnter={() => setHoveredBtn('theme')}
           onMouseLeave={() => setHoveredBtn(null)}
-          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {isDark ? '\u2600' : '\u263D'}
         </button>
+        {isOwner && (
+          <button
+            style={{
+              ...styles.topBtn,
+              background: theme.surface,
+              color: theme.textSecondary,
+              boxShadow: theme.shadow,
+              ...(hoveredBtn === 'access' ? { background: theme.surfaceHover } : {}),
+            }}
+            onClick={() => setShowAccessModal(true)}
+            onMouseEnter={() => setHoveredBtn('access')}
+            onMouseLeave={() => setHoveredBtn(null)}
+            aria-label="Manage board access"
+          >
+            Access
+          </button>
+        )}
+        {isViewer && (
+          <span style={{ ...styles.roleBadge, color: theme.textMuted }}>View Only</span>
+        )}
         <PresenceIndicator onlineUsers={onlineUsers} />
         <UserBadge user={user} />
       </div>
 
       {showCopiedToast && (
-        <div style={{ ...styles.toast, background: theme.toastBg, color: theme.toastText }}>Link copied!</div>
+        <div role="status" style={{ ...styles.toast, background: theme.toastBg, color: theme.toastText }}>Link copied!</div>
       )}
 
       {connectorFrom && (
-        <div style={{ ...styles.connectorHint, background: theme.accent, color: 'white' }}>
+        <div role="status" style={{ ...styles.connectorHint, background: theme.accent, color: 'white' }}>
           Click target object to connect (Esc to cancel)
         </div>
       )}
@@ -862,11 +993,82 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
             deleteObject(contextMenu.objectId);
             setContextMenu(null);
           }}
+          onComment={() => {
+            setCommentPanel({ objectId: contextMenu.objectId, x: contextMenu.x, y: contextMenu.y });
+            setContextMenu(null);
+          }}
+          onReact={() => {
+            setReactionPicker({ objectId: contextMenu.objectId, x: contextMenu.x, y: contextMenu.y });
+            setContextMenu(null);
+          }}
           onClose={() => setContextMenu(null)}
+          isReadOnly={isViewer}
         />
       )}
 
-      <AICommandInput boardId={boardId} user={user} objects={objects} />
+      {commentPanel && (
+        <CommentPanel
+          boardId={boardId}
+          objectId={commentPanel.objectId}
+          user={user}
+          x={commentPanel.x}
+          y={commentPanel.y}
+          onClose={() => setCommentPanel(null)}
+        />
+      )}
+
+      {reactionPicker && (
+        <ReactionPicker
+          boardId={boardId}
+          objectId={reactionPicker.objectId}
+          userId={user.uid}
+          userName={user.displayName || user.email || 'Anonymous'}
+          x={reactionPicker.x}
+          y={reactionPicker.y}
+          onClose={() => setReactionPicker(null)}
+        />
+      )}
+
+      <TemplateModal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        onSelect={handleTemplateSelect}
+        isLoading={templateLoading}
+        userTemplates={userTemplates}
+        onApplyUserTemplate={handleUserTemplateApply}
+        onDeleteUserTemplate={deleteTemplate}
+        onSaveTemplate={() => setShowSaveTemplateModal(true)}
+        hasObjects={objects.length > 0}
+      />
+
+      <SaveTemplateModal
+        isOpen={showSaveTemplateModal}
+        onClose={() => setShowSaveTemplateModal(false)}
+        onSave={handleSaveTemplate}
+      />
+
+      {boardMetadata && (
+        <AccessManagementModal
+          isOpen={showAccessModal}
+          onClose={() => setShowAccessModal(false)}
+          metadata={boardMetadata}
+          currentUserId={user.uid}
+          onAddMember={addMember}
+          onRemoveMember={removeMember}
+          onChangeMemberRole={changeMemberRole}
+        />
+      )}
+
+      <AICommandInput boardId={boardId} user={user} objects={objects} disabled={isViewer} />
+
+      {!isViewer && (
+        <AISuggestButton
+          boardId={boardId}
+          user={user}
+          objects={objects}
+          onApply={handleTemplateSelect}
+        />
+      )}
 
       {/* Collapsible help */}
       <button
@@ -880,7 +1082,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
         onClick={() => setShowHelp(!showHelp)}
         onMouseEnter={() => setHoveredBtn('help')}
         onMouseLeave={() => setHoveredBtn(null)}
-        title="Keyboard shortcuts & help"
+        aria-label="Keyboard shortcuts and help"
       >
         ?
       </button>
@@ -1068,5 +1270,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: '1px solid #d1d5db',
     fontFamily: 'monospace',
     fontWeight: 600,
+  },
+  roleBadge: {
+    fontSize: '11px',
+    fontWeight: 600,
+    padding: '4px 10px',
+    borderRadius: '6px',
+    background: 'rgba(0,0,0,0.06)',
+    letterSpacing: '0.5px',
+    textTransform: 'uppercase' as const,
   },
 };

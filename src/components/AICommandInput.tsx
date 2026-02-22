@@ -3,6 +3,7 @@ import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { BoardObject, User } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
+import { useNotification } from '../contexts/NotificationContext';
 
 type AIStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -29,13 +30,15 @@ interface AICommandInputProps {
   boardId: string;
   user: User;
   objects: BoardObject[];
+  disabled?: boolean;
 }
 
-export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, objects }) => {
+export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, objects, disabled }) => {
   const [inputValue, setInputValue] = useState('');
   const [status, setStatus] = useState<AIStatus>('idle');
   const [message, setMessage] = useState('');
   const { theme } = useTheme();
+  const { addNotification } = useNotification();
 
   // Execute operations returned by the AI endpoint against Firestore (in parallel)
   const executeOperations = async (operations: Operation[]) => {
@@ -97,7 +100,9 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
           continue; // retry
         } else {
           setStatus('error');
-          setMessage(data.error || 'Something went wrong');
+          const errMsg = data.error || 'Something went wrong';
+          setMessage(errMsg);
+          addNotification(errMsg, 'error');
           lastError = '';
           break;
         }
@@ -106,6 +111,7 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
         if (retry >= MAX_CLIENT_RETRIES) {
           setStatus('error');
           setMessage(lastError);
+          addNotification(lastError, 'error');
         }
       }
     }
@@ -122,6 +128,17 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
     }, 4000);
   };
 
+  if (disabled) {
+    return (
+      <div style={styles.container}>
+        <div style={{ ...styles.inputRow, background: theme.surface, boxShadow: theme.shadowHeavy, opacity: 0.6 }}>
+          <span style={styles.icon}>AI</span>
+          <span style={{ ...styles.input, color: theme.textMuted, padding: '8px 4px' }}>View-only mode</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
       <form onSubmit={handleSubmit} style={styles.form}>
@@ -132,6 +149,7 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder='Ask AI... (e.g. "SWOT analysis")'
+            aria-label="AI command input"
             disabled={status === 'loading'}
             style={{
               ...styles.input,
@@ -141,6 +159,7 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
           />
           <button
             type="submit"
+            aria-label="Send AI command"
             disabled={status === 'loading' || !inputValue.trim()}
             style={{
               ...styles.button,
@@ -153,19 +172,19 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
       </form>
 
       {status === 'loading' && (
-        <div style={{ ...styles.statusBar, ...styles.statusLoading }}>
+        <div role="status" style={{ ...styles.statusBar, ...styles.statusLoading }}>
           AI is working on your request...
         </div>
       )}
 
       {status === 'success' && message && (
-        <div style={{ ...styles.statusBar, ...styles.statusSuccess }}>
+        <div role="status" style={{ ...styles.statusBar, ...styles.statusSuccess }}>
           {message}
         </div>
       )}
 
       {status === 'error' && message && (
-        <div style={{ ...styles.statusBar, ...styles.statusError }}>
+        <div role="alert" style={{ ...styles.statusBar, ...styles.statusError }}>
           {message}
         </div>
       )}

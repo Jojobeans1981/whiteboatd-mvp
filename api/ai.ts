@@ -300,6 +300,12 @@ Rules:
 - For SWOT analysis: create 4 frames in a 2x2 grid labeled Strengths, Weaknesses, Opportunities, Threats with matching colors, then place a starter sticky in each.
 - For retrospective boards: create 3 columns (What Went Well, What To Improve, Action Items).
 - For user journey maps: create horizontal frames for each stage (Awareness, Consideration, Decision, Onboarding, Retention).
+- For Eisenhower Matrix: create 4 quadrant frames in a 2x2 grid: "Urgent & Important (Do)" top-left, "Not Urgent & Important (Schedule)" top-right, "Urgent & Not Important (Delegate)" bottom-left, "Not Urgent & Not Important (Eliminate)" bottom-right. Use colors: red, blue, yellow, mint.
+- For Pros & Cons: create 2 side-by-side frames labeled "Pros" (green/teal) and "Cons" (red/coral) with 3 sample stickies in each.
+- For Business Model Canvas: create 9 frames in the standard BMC layout. Top row: Key Partners, Key Activities, Value Propositions, Customer Relationships, Customer Segments. Bottom row: Key Resources, Channels, Cost Structure, Revenue Streams.
+- For Sprint Planning: create a "Sprint Goal" frame at top, then 3 equal columns: Backlog, In Progress, Done with task stickies.
+- For Brainstorming: place a central "Main Topic" sticky, surround with 6 idea stickies in a circle (radius ~300px), connect each to center.
+- For Flowchart: arrange nodes top-to-bottom with ~150px vertical spacing. Use rectangles for processes, stickies for start/end, connect with connectors.
 - When arranging in a grid, use consistent spacing (e.g., 220px between sticky notes).
 - The board state is provided so you can reference existing object IDs for move/resize/update operations.
 - Use organizeBoard with mode "grid" when the user asks to organize, arrange, tidy, or clean up the board.

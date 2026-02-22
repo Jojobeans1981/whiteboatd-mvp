@@ -38,7 +38,8 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({ onlineUser
           color: theme.text,
         }}
         onClick={() => setExpanded(!expanded)}
-        title="Online users"
+        aria-label={`${onlineUsers.length} users online`}
+        aria-expanded={expanded}
       >
         <div style={styles.dotStack}>
           {onlineUsers.slice(0, 3).map((user, i) => (

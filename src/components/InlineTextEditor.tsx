@@ -59,6 +59,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       defaultValue={initialText}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
+      aria-label="Edit text"
       style={{
         position: 'absolute',
         left: `${x}px`,

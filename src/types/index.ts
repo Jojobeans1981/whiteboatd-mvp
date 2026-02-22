@@ -18,6 +18,8 @@ export interface BoardObject {
   createdBy: string;
   createdAt: number;
   updatedAt: number;
+  commentCount?: number;
+  reactions?: Record<string, number>;
 }
 
 export interface StickyNote extends BoardObject {
@@ -76,4 +78,41 @@ export interface User {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+}
+
+export interface Comment {
+  id: string;
+  text: string;
+  userId: string;
+  userName: string;
+  userPhotoURL?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Reaction {
+  id: string;
+  emoji: string;
+  userId: string;
+  userName: string;
+  createdAt: number;
+}
+
+export type BoardRole = 'owner' | 'editor' | 'viewer';
+
+export interface BoardMember {
+  role: BoardRole;
+  name: string;
+  email: string;
+  addedAt: number;
+}
+
+export interface BoardMetadata {
+  id: string;
+  name: string;
+  ownerId: string;
+  ownerName: string;
+  createdAt: number;
+  updatedAt: number;
+  members: Record<string, BoardMember>;
 }
