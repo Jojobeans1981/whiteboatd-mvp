@@ -52,7 +52,7 @@ export function autoGridLayout(objects: BoardObject[]): PositionUpdate[] {
   const cols = Math.min(6, Math.ceil(Math.sqrt(placeable.length)));
   const startX = 100;
   const startY = 100;
-  const gap = 30;
+  const gap = 50;
 
   const results: PositionUpdate[] = [];
   let currentX = startX;
@@ -99,8 +99,8 @@ export function groupByColorLayout(objects: BoardObject[]): PositionUpdate[] {
 
   const startX = 100;
   const startY = 100;
-  const columnGap = 60;
-  const rowGap = 30;
+  const columnGap = 80;
+  const rowGap = 50;
 
   const results: PositionUpdate[] = [];
   let columnX = startX;

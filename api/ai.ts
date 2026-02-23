@@ -590,10 +590,10 @@ function processToolCall(
             const offX = centeredTypes.has(obj.type) ? w / 2 : 0;
             const offY = centeredTypes.has(obj.type) ? h / 2 : 0;
             positions.push({ id: obj.id, x: columnX + offX, y: rowY + offY });
-            rowY += h + 30;
+            rowY += h + 50;
             maxW = Math.max(maxW, w);
           }
-          columnX += maxW + 60;
+          columnX += maxW + 80;
         }
       } else {
         const sorted = [...placeable].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -602,11 +602,11 @@ function processToolCall(
         let cx = 100, cy = 100, col = 0, rowH = 0;
         for (const obj of sorted) {
           const { w, h } = getObjSize(obj);
-          if (col >= cols) { col = 0; cx = 100; cy += rowH + 30; rowH = 0; }
+          if (col >= cols) { col = 0; cx = 100; cy += rowH + 50; rowH = 0; }
           const offX = centeredTypes.has(obj.type) ? w / 2 : 0;
           const offY = centeredTypes.has(obj.type) ? h / 2 : 0;
           positions.push({ id: obj.id, x: cx + offX, y: cy + offY });
-          cx += w + 30;
+          cx += w + 50;
           rowH = Math.max(rowH, h);
           col++;
         }
