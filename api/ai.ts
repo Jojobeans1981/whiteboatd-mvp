@@ -695,7 +695,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Models to try in order — if the primary is rate-limited, fall back to the next
-  const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
 
   // Core agent logic extracted so it can be retried with different models
   async function runWithModel(
@@ -821,6 +821,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           } catch (error: any) {
             lastError = error;
             const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Resource has been exhausted');
+            const is404 = error?.status === 404 || error?.message?.includes('404') || error?.message?.includes('is not found');
+
+            if (is404 && i < MODELS.length - 1) {
+              console.log(`Model ${modelName} not found (404), falling back to ${MODELS[i + 1]}...`);
+              break; // Skip retries, go straight to next model
+            }
 
             if (!is429) {
               throw error; // Non-rate-limit error — don't retry
