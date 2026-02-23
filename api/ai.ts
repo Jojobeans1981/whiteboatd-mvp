@@ -562,6 +562,15 @@ function processToolCall(
         return { message: 'No objects to organize.', operations: [] };
       }
 
+      const centeredTypes = new Set(['circle', 'triangle', 'hexagon', 'star']);
+      function getObjSize(obj: BoardObject) {
+        if (centeredTypes.has(obj.type)) {
+          const d = (obj.radius || 60) * 2;
+          return { w: d, h: d };
+        }
+        return { w: obj.width || 150, h: obj.height || 100 };
+      }
+
       let positions: Array<{ id: string; x: number; y: number }>;
 
       if (input.mode === 'groupByColor') {
@@ -577,9 +586,10 @@ function processToolCall(
           let rowY = 100;
           let maxW = 0;
           for (const obj of group) {
-            const w = obj.width || (obj.radius ? obj.radius * 2 : 150);
-            const h = obj.height || (obj.radius ? obj.radius * 2 : 100);
-            positions.push({ id: obj.id, x: columnX, y: rowY });
+            const { w, h } = getObjSize(obj);
+            const offX = centeredTypes.has(obj.type) ? w / 2 : 0;
+            const offY = centeredTypes.has(obj.type) ? h / 2 : 0;
+            positions.push({ id: obj.id, x: columnX + offX, y: rowY + offY });
             rowY += h + 30;
             maxW = Math.max(maxW, w);
           }
@@ -591,10 +601,11 @@ function processToolCall(
         positions = [];
         let cx = 100, cy = 100, col = 0, rowH = 0;
         for (const obj of sorted) {
-          const w = obj.width || (obj.radius ? obj.radius * 2 : 150);
-          const h = obj.height || (obj.radius ? obj.radius * 2 : 100);
+          const { w, h } = getObjSize(obj);
           if (col >= cols) { col = 0; cx = 100; cy += rowH + 30; rowH = 0; }
-          positions.push({ id: obj.id, x: cx, y: cy });
+          const offX = centeredTypes.has(obj.type) ? w / 2 : 0;
+          const offY = centeredTypes.has(obj.type) ? h / 2 : 0;
+          positions.push({ id: obj.id, x: cx + offX, y: cy + offY });
           cx += w + 30;
           rowH = Math.max(rowH, h);
           col++;
