@@ -802,51 +802,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
   }
 
-  // Helper: wait ms
-  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
   // Wrap with LangSmith tracing
   const runAgent = traceable(
     async (params: { command: string; boardState: BoardObject[]; userId: string }) => {
       let lastError: any;
 
-      // Try each model, and on 429 retry with delay before falling back
+      // Try each model — on 429/404, fall back to next model immediately (no delays)
       for (let i = 0; i < MODELS.length; i++) {
         const modelName = MODELS[i];
+        try {
+          return await runWithModel(modelName, params);
+        } catch (error: any) {
+          lastError = error;
+          const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Resource has been exhausted');
+          const is404 = error?.status === 404 || error?.message?.includes('404') || error?.message?.includes('is not found');
 
-        // Try up to 2 attempts per model (initial + 1 retry after delay)
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            return await runWithModel(modelName, params);
-          } catch (error: any) {
-            lastError = error;
-            const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Resource has been exhausted');
-            const is404 = error?.status === 404 || error?.message?.includes('404') || error?.message?.includes('is not found');
-
-            if (is404 && i < MODELS.length - 1) {
-              console.log(`Model ${modelName} not found (404), falling back to ${MODELS[i + 1]}...`);
-              break; // Skip retries, go straight to next model
-            }
-
-            if (!is429) {
-              throw error; // Non-rate-limit error — don't retry
-            }
-
-            console.log(`Model ${modelName} rate limited (attempt ${attempt + 1})`);
-
-            // First attempt: wait and retry same model
-            if (attempt === 0) {
-              console.log(`Waiting 3 seconds before retry...`);
-              await wait(3000);
-              continue;
-            }
-
-            // Second attempt failed: fall back to next model if available
-            if (i < MODELS.length - 1) {
-              console.log(`Falling back to ${MODELS[i + 1]}...`);
-              await wait(1000);
-            }
+          if ((is429 || is404) && i < MODELS.length - 1) {
+            console.log(`Model ${modelName} ${is404 ? 'not found' : 'rate limited'}, falling back to ${MODELS[i + 1]}...`);
+            continue;
           }
+
+          throw error;
         }
       }
 

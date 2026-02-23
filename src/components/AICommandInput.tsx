@@ -60,65 +60,58 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
     setStatus('loading');
     setMessage('');
 
-    const MAX_CLIENT_RETRIES = 2;
-    let lastError = '';
+    try {
+      // Abort if the request takes longer than 30 seconds
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
 
-    for (let retry = 0; retry <= MAX_CLIENT_RETRIES; retry++) {
-      try {
-        if (retry > 0) {
-          setMessage(`Rate limited — retrying in ${retry * 5}s... (attempt ${retry + 1})`);
-          await new Promise((r) => setTimeout(r, retry * 5000));
-        }
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          command: inputValue.trim(),
+          boardId,
+          boardState: objects,
+          userId: user.uid,
+          userName: user.displayName || user.email || 'Anonymous',
+        }),
+      });
 
-        const response = await fetch('/api/ai', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            command: inputValue.trim(),
-            boardId,
-            boardState: objects,
-            userId: user.uid,
-            userName: user.displayName || user.email || 'Anonymous',
-          }),
-        });
+      clearTimeout(timeout);
 
-        const data = await response.json();
-
-        if (data.success && data.operations) {
-          await executeOperations(data.operations);
-          setStatus('success');
-          setMessage(data.message || `Created ${data.objectsCreated} objects.`);
-          lastError = '';
-          break;
-        } else if (data.success) {
-          setStatus('success');
-          setMessage(data.message || 'Done.');
-          lastError = '';
-          break;
-        } else if (response.status === 429 && retry < MAX_CLIENT_RETRIES) {
-          lastError = data.error || 'Rate limited';
-          continue; // retry
-        } else {
-          setStatus('error');
-          const errMsg = data.error || 'Something went wrong';
-          setMessage(errMsg);
-          addNotification(errMsg, 'error');
-          lastError = '';
-          break;
-        }
-      } catch (err) {
-        lastError = 'Failed to reach AI service';
-        if (retry >= MAX_CLIENT_RETRIES) {
-          setStatus('error');
-          setMessage(lastError);
-          addNotification(lastError, 'error');
-        }
+      // Handle non-JSON responses (e.g. Vercel 504 timeout returns HTML)
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(response.status === 504 ? 'Request timed out' : `Server error (${response.status})`);
       }
-    }
 
-    if (lastError) {
+      const data = await response.json();
+
+      if (data.success && data.operations) {
+        await executeOperations(data.operations);
+        setStatus('success');
+        setMessage(data.message || `Created ${data.objectsCreated} objects.`);
+      } else if (data.success) {
+        setStatus('success');
+        setMessage(data.message || 'Done.');
+      } else if (response.status === 429) {
+        setStatus('error');
+        setMessage('AI is busy — please wait a moment and try again.');
+        addNotification('AI rate limited, try again shortly', 'error');
+      } else {
+        setStatus('error');
+        const errMsg = data.error || 'Something went wrong';
+        setMessage(errMsg);
+        addNotification(errMsg, 'error');
+      }
+    } catch (err: any) {
       setStatus('error');
-      setMessage(lastError + ' — please wait a minute and try again.');
+      const errMsg = err?.name === 'AbortError'
+        ? 'Request timed out — please try again.'
+        : 'Failed to reach AI service — please try again.';
+      setMessage(errMsg);
+      addNotification(errMsg, 'error');
     }
 
     setInputValue('');
