@@ -98,6 +98,12 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
     setMessage('');
     setInputValue('');
 
+    // Safety net: force-reset after 20s no matter what (even if fetch hangs forever)
+    const safetyReset = setTimeout(() => {
+      setStatus('error');
+      setMessage('Request timed out — please try again.');
+    }, 20000);
+
     try {
       // Try handling locally first (instant, no API call needed)
       const localResult = await tryLocalCommand(command, objectsSnapshot);
@@ -107,9 +113,9 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
         return;
       }
 
-      // Abort if the request takes longer than 30 seconds
+      // Abort fetch after 12 seconds (Vercel hobby times out at 10s anyway)
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
+      const fetchTimeout = setTimeout(() => controller.abort(), 12000);
 
       const response = await fetch('/api/ai', {
         method: 'POST',
@@ -124,7 +130,7 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
         }),
       });
 
-      clearTimeout(timeout);
+      clearTimeout(fetchTimeout);
 
       // Handle non-JSON responses (e.g. Vercel 504 timeout returns HTML)
       const contentType = response.headers.get('content-type') || '';
@@ -159,7 +165,8 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
       setMessage(errMsg);
       addNotification(errMsg, 'error');
     } finally {
-      // Always reset to idle after delay — guarantees the input never stays stuck
+      clearTimeout(safetyReset);
+      // Always reset to idle after delay
       setTimeout(() => {
         setStatus('idle');
         setMessage('');
