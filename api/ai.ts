@@ -694,8 +694,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ success: false, error: 'AI service not configured.' });
   }
 
-  // Models to try in order — if the primary is rate-limited, fall back to the next
-  const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+  // Gemini models to try in order — each has separate rate limits
+  const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
 
   // Core agent logic extracted so it can be retried with different models
   async function runWithModel(
@@ -802,12 +802,122 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
   }
 
+  // --- Groq fallback (free LLM with function calling, OpenAI-compatible) ---
+  function convertSchemaType(val: any): any {
+    if (val === SchemaType.OBJECT) return 'object';
+    if (val === SchemaType.STRING) return 'string';
+    if (val === SchemaType.NUMBER) return 'number';
+    if (val === SchemaType.ARRAY) return 'array';
+    if (val === SchemaType.BOOLEAN) return 'boolean';
+    if (typeof val === 'object' && val !== null) {
+      const out: any = {};
+      for (const [k, v] of Object.entries(val)) {
+        out[k] = convertSchemaType(v);
+      }
+      return out;
+    }
+    return val;
+  }
+
+  function geminiToolsToOpenAI() {
+    return TOOL_DECLARATIONS.map((t) => ({
+      type: 'function' as const,
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: convertSchemaType(t.parameters),
+      },
+    }));
+  }
+
+  async function runWithGroq(
+    params: { command: string; boardState: BoardObject[]; userId: string }
+  ) {
+    const groqKey = process.env.GROQ_API_KEY;
+    if (!groqKey) throw new Error('Groq API key not configured');
+
+    const tools = geminiToolsToOpenAI();
+    const userMessage = buildUserMessage(params.command, params.boardState);
+
+    const messages: any[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userMessage },
+    ];
+
+    const allOperations: Operation[] = [];
+    let finalMessage = '';
+    const MAX_ITERATIONS = 10;
+
+    for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages,
+          tools,
+          tool_choice: 'auto',
+        }),
+      });
+
+      if (!resp.ok) {
+        const errBody = await resp.text();
+        throw new Error(`Groq API error ${resp.status}: ${errBody}`);
+      }
+
+      const data: any = await resp.json();
+      const choice = data.choices?.[0];
+      if (!choice) throw new Error('No response from Groq');
+
+      const msg = choice.message;
+      messages.push(msg); // Add assistant response to history
+
+      if (msg.content) {
+        finalMessage = msg.content;
+      }
+
+      if (!msg.tool_calls || msg.tool_calls.length === 0) {
+        break;
+      }
+
+      // Process each tool call
+      for (const tc of msg.tool_calls) {
+        const args = typeof tc.function.arguments === 'string'
+          ? JSON.parse(tc.function.arguments)
+          : tc.function.arguments;
+        const toolResult = processToolCall(tc.function.name, args, params.userId, params.boardState);
+        allOperations.push(...toolResult.operations);
+
+        messages.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          content: toolResult.message,
+        });
+      }
+    }
+
+    const created = allOperations.filter((o) => o.action === 'create').length;
+    const modified = allOperations.filter((o) => o.action === 'update').length;
+
+    return {
+      success: true,
+      message: finalMessage || `Completed: ${created} objects created, ${modified} modified.`,
+      operations: allOperations,
+      objectsCreated: created,
+      objectsModified: modified,
+      model: 'groq/llama-3.3-70b',
+    };
+  }
+
   // Wrap with LangSmith tracing
   const runAgent = traceable(
     async (params: { command: string; boardState: BoardObject[]; userId: string }) => {
       let lastError: any;
 
-      // Try each model — on 429/404, fall back to next model immediately (no delays)
+      // Try each Gemini model — on 429/404, fall back immediately
       for (let i = 0; i < MODELS.length; i++) {
         const modelName = MODELS[i];
         try {
@@ -817,12 +927,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Resource has been exhausted');
           const is404 = error?.status === 404 || error?.message?.includes('404') || error?.message?.includes('is not found');
 
-          if ((is429 || is404) && i < MODELS.length - 1) {
-            console.log(`Model ${modelName} ${is404 ? 'not found' : 'rate limited'}, falling back to ${MODELS[i + 1]}...`);
+          if (is429 || is404) {
+            console.log(`Model ${modelName} ${is404 ? 'not found' : 'rate limited'}, trying next...`);
             continue;
           }
 
           throw error;
+        }
+      }
+
+      // All Gemini models exhausted — try Groq as free LLM fallback
+      if (process.env.GROQ_API_KEY) {
+        try {
+          console.log('All Gemini models exhausted, falling back to Groq...');
+          return await runWithGroq(params);
+        } catch (groqError: any) {
+          console.error('Groq fallback failed:', groqError?.message);
+          // Fall through to throw the original Gemini error
         }
       }
 
