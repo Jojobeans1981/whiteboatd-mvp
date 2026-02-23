@@ -106,7 +106,7 @@ const TOOL_DECLARATIONS = [
         text: { type: SchemaType.STRING, description: 'Text content for the sticky note' },
         color: {
           type: SchemaType.STRING,
-          description: 'Background color hex. Must be one of: #FFE066, #FF6B6B, #4ECDC4, #45B7D1, #95E1D3, #F38181, #AA96DA, #FCBAD3',
+          description: 'Background color hex. Use any of: #FFE066, #FFB347, #FF6B6B, #F38181, #FCBAD3, #AA96DA, #45B7D1, #4ECDC4, #95E1D3, #A8E6CF, #77DD77, #C9B458, #D4A574, #A0522D, #FFFFFF, #B0B0B0, #4A4A4A, #1A1A1A',
         },
         width: { type: SchemaType.NUMBER, description: 'Width in pixels, default 200' },
         height: { type: SchemaType.NUMBER, description: 'Height in pixels, default 200' },
@@ -295,7 +295,7 @@ Rules:
 - Place objects in visible areas (x: 100-1500, y: 100-1000).
 - When creating multiple objects, space them so they don't overlap.
 - Sticky notes default to 200x200. Rectangles default to 150x100. Circles default to radius 60.
-- Available colors: #FFE066 (yellow), #FF6B6B (red), #4ECDC4 (teal), #45B7D1 (blue), #95E1D3 (mint), #F38181 (coral), #AA96DA (purple), #FCBAD3 (pink).
+- Available colors: #FFE066 (yellow), #FFB347 (orange), #FF6B6B (red), #F38181 (coral), #FCBAD3 (pink), #AA96DA (purple), #45B7D1 (blue), #4ECDC4 (teal), #95E1D3 (mint), #A8E6CF (light green), #77DD77 (green), #C9B458 (gold), #D4A574 (tan), #A0522D (brown), #FFFFFF (white), #B0B0B0 (gray), #4A4A4A (dark gray), #1A1A1A (black).
 - For frames, use large dimensions like 400x350 or bigger.
 - For SWOT analysis: create 4 frames in a 2x2 grid labeled Strengths, Weaknesses, Opportunities, Threats with matching colors, then place a starter sticky in each.
 - For retrospective boards: create 3 columns (What Went Well, What To Improve, Action Items).

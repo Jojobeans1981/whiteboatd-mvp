@@ -22,7 +22,26 @@ interface ToolbarProps {
   isReadOnly?: boolean;
 }
 
-const colors = ['#FFE066', '#FF6B6B', '#4ECDC4', '#45B7D1', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3'];
+const COLORS = [
+  { hex: '#FFE066', name: 'Yellow' },
+  { hex: '#FFB347', name: 'Orange' },
+  { hex: '#FF6B6B', name: 'Red' },
+  { hex: '#F38181', name: 'Coral' },
+  { hex: '#FCBAD3', name: 'Pink' },
+  { hex: '#AA96DA', name: 'Purple' },
+  { hex: '#45B7D1', name: 'Blue' },
+  { hex: '#4ECDC4', name: 'Teal' },
+  { hex: '#95E1D3', name: 'Mint' },
+  { hex: '#A8E6CF', name: 'Light Green' },
+  { hex: '#77DD77', name: 'Green' },
+  { hex: '#C9B458', name: 'Gold' },
+  { hex: '#D4A574', name: 'Tan' },
+  { hex: '#A0522D', name: 'Brown' },
+  { hex: '#FFFFFF', name: 'White' },
+  { hex: '#B0B0B0', name: 'Gray' },
+  { hex: '#4A4A4A', name: 'Dark Gray' },
+  { hex: '#1A1A1A', name: 'Black' },
+];
 
 const MIN_FONT = 8;
 const MAX_FONT = 72;
@@ -69,20 +88,25 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 }) => {
   const [hovered, setHovered] = useState<string | null>(null);
   const [shapesOpen, setShapesOpen] = useState(false);
+  const [colorsOpen, setColorsOpen] = useState(false);
   const shapesRef = useRef<HTMLDivElement>(null);
+  const colorsRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
-    if (!shapesOpen) return;
+    if (!shapesOpen && !colorsOpen) return;
     const handler = (e: MouseEvent) => {
-      if (shapesRef.current && !shapesRef.current.contains(e.target as Node)) {
+      if (shapesOpen && shapesRef.current && !shapesRef.current.contains(e.target as Node)) {
         setShapesOpen(false);
+      }
+      if (colorsOpen && colorsRef.current && !colorsRef.current.contains(e.target as Node)) {
+        setColorsOpen(false);
       }
     };
     window.addEventListener('mousedown', handler);
     return () => window.removeEventListener('mousedown', handler);
-  }, [shapesOpen]);
+  }, [shapesOpen, colorsOpen]);
 
   const showFontSize = selectedObject && (selectedObject.type === 'sticky' || selectedObject.type === 'text' || selectedObject.type === 'frame');
   const currentFontSize = selectedObject?.fontSize || (selectedObject?.type === 'text' ? 24 : selectedObject?.type === 'frame' ? 16 : 14);
@@ -210,23 +234,51 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       <div style={{ ...styles.divider, background: theme.border }} />
 
-      <div style={styles.section}>
-        {colors.map((color) => (
-          <Tooltip key={color} content={color}>
-            <button
-              style={{
-                ...styles.colorButton,
-                backgroundColor: color,
-                ...(selectedColor === color ? { borderColor: theme.text, transform: 'scale(1.1)' } : {}),
-                ...(hovered === `c-${color}` ? { transform: 'scale(1.15)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' } : {}),
-              }}
-              onClick={() => handleColorClick(color)}
-              onMouseEnter={() => setHovered(`c-${color}`)}
-              onMouseLeave={() => setHovered(null)}
-              aria-label={`Color ${color}`}
-            />
-          </Tooltip>
-        ))}
+      {/* Colors dropdown */}
+      <div ref={colorsRef} style={{ position: 'relative' }}>
+        <Tooltip content="Colors">
+          <button
+            style={{
+              ...styles.toolButton,
+              background: theme.bg,
+              ...(colorsOpen ? { background: theme.surfaceActive, borderColor: theme.accent } : {}),
+              ...(hovered === 'colors-toggle' && !colorsOpen ? { background: theme.surfaceHover } : {}),
+            }}
+            onClick={() => setColorsOpen((prev) => !prev)}
+            onMouseEnter={() => setHovered('colors-toggle')}
+            onMouseLeave={() => setHovered(null)}
+            aria-label="Colors"
+            aria-expanded={colorsOpen}
+            aria-haspopup="true"
+          >
+            <span style={{ ...styles.colorDot, backgroundColor: selectedColor }} aria-hidden="true" />
+            <span style={{ ...styles.toolLabel, color: theme.textMuted }}>Colors ▾</span>
+          </button>
+        </Tooltip>
+        {colorsOpen && (
+          <div style={{ ...styles.colorDropdown, background: theme.surface, boxShadow: theme.shadowHeavy }}>
+            {COLORS.map((c) => (
+              <Tooltip key={c.hex} content={c.name}>
+                <button
+                  style={{
+                    ...styles.colorSwatch,
+                    backgroundColor: c.hex,
+                    ...(c.hex === '#FFFFFF' ? { border: '2px solid #d1d5db' } : {}),
+                    ...(selectedColor === c.hex ? { borderColor: theme.text, transform: 'scale(1.2)', boxShadow: '0 0 0 2px ' + theme.accent } : {}),
+                    ...(hovered === `c-${c.hex}` && selectedColor !== c.hex ? { transform: 'scale(1.15)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' } : {}),
+                  }}
+                  onClick={() => {
+                    handleColorClick(c.hex);
+                    setColorsOpen(false);
+                  }}
+                  onMouseEnter={() => setHovered(`c-${c.hex}`)}
+                  onMouseLeave={() => setHovered(null)}
+                  aria-label={c.name}
+                />
+              </Tooltip>
+            ))}
+          </div>
+        )}
       </div>
 
       {showFontSize && (
@@ -374,17 +426,33 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 500,
     lineHeight: 1,
   },
-  colorButton: {
-    width: '26px',
-    height: '26px',
+  colorDot: {
+    width: '16px',
+    height: '16px',
+    borderRadius: '50%',
+    border: '1.5px solid rgba(0,0,0,0.15)',
+  },
+  colorDropdown: {
+    position: 'absolute' as const,
+    top: '100%',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    marginTop: '6px',
+    borderRadius: '10px',
+    padding: '8px',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(6, 1fr)',
+    gap: '6px',
+    zIndex: 2000,
+  },
+  colorSwatch: {
+    width: '28px',
+    height: '28px',
     border: '2px solid transparent',
     borderRadius: '50%',
     cursor: 'pointer',
     transition: 'all 0.15s',
-  },
-  activeColorButton: {
-    borderColor: '#1f2937',
-    transform: 'scale(1.1)',
+    padding: 0,
   },
   smallButton: {
     padding: '6px 10px',
