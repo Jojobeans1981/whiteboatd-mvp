@@ -2,7 +2,8 @@
 
 export interface BoardObject {
   id: string;
-  type: 'sticky' | 'rectangle' | 'circle' | 'frame' | 'connector' | 'text';
+  type: 'sticky' | 'rectangle' | 'circle' | 'frame' | 'connector' | 'text'
+      | 'triangle' | 'diamond' | 'star' | 'hexagon' | 'line' | 'pen';
   x: number;
   y: number;
   width?: number;
@@ -20,6 +21,9 @@ export interface BoardObject {
   updatedAt: number;
   commentCount?: number;
   reactions?: Record<string, number>;
+  points?: number[];
+  groupId?: string;
+  strokeWidth?: number;
 }
 
 export interface StickyNote extends BoardObject {
@@ -30,10 +34,17 @@ export interface StickyNote extends BoardObject {
 }
 
 export interface Shape extends BoardObject {
-  type: 'rectangle' | 'circle';
+  type: 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'star' | 'hexagon' | 'line';
   width?: number;
   height?: number;
   radius?: number;
+  points?: number[];
+}
+
+export interface PenPath extends BoardObject {
+  type: 'pen';
+  points: number[];
+  strokeWidth: number;
 }
 
 export interface FrameObject extends BoardObject {

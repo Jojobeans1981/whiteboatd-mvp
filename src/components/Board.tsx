@@ -1,8 +1,8 @@
 // src/components/Board.tsx
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Stage, Layer, Transformer } from 'react-konva';
-import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { Stage, Layer, Transformer, Line } from 'react-konva';
+import { doc, setDoc, updateDoc, deleteDoc, deleteField } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useBoardObjects } from '../hooks/useBoardObjects';
 import { useCursors } from '../hooks/useCursors';
@@ -14,6 +14,8 @@ import { Frame } from './Frame';
 import { Connector } from './Connector';
 import { TextObject } from './TextObject';
 import { Cursor } from './Cursor';
+import { PolygonShape } from './PolygonShape';
+import { FreehandPath } from './FreehandPath';
 import { InlineTextEditor } from './InlineTextEditor';
 import { ContextMenu } from './ContextMenu';
 import { Toolbar, Tool } from './Toolbar';
@@ -89,6 +91,10 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
   const isViewer = userRole === 'viewer';
   const isOwner = userRole === 'owner';
 
+  // Pen tool drawing state
+  const [isDrawingPen, setIsDrawingPen] = useState(false);
+  const [penPoints, setPenPoints] = useState<number[]>([]);
+
   // Update presence
   React.useEffect(() => {
     const presenceRef = doc(db, 'boards', boardId, 'presence', user.uid);
@@ -133,12 +139,75 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     [boardId, user]
   );
 
+  const handlePenDown = (e: any) => {
+    if (isViewer || selectedTool !== 'pen') return;
+    if (e.target !== e.target.getStage()) return;
+    const stage = e.target.getStage();
+    const point = stage.getPointerPosition();
+    if (!point) return;
+    const x = (point.x - stagePos.x) / stageScale;
+    const y = (point.y - stagePos.y) / stageScale;
+    setIsDrawingPen(true);
+    setPenPoints([x, y]);
+  };
+
   const handleMouseMove = (e: any) => {
     const stage = e.target.getStage();
     const point = stage.getPointerPosition();
     if (point) {
       updateCursor(point.x - stagePos.x, point.y - stagePos.y);
+
+      // Pen drawing: append points
+      if (isDrawingPen && selectedTool === 'pen') {
+        const x = (point.x - stagePos.x) / stageScale;
+        const y = (point.y - stagePos.y) / stageScale;
+        setPenPoints((prev) => {
+          const px = prev[prev.length - 2] || 0;
+          const py = prev[prev.length - 1] || 0;
+          const dx = x - px;
+          const dy = y - py;
+          if (dx * dx + dy * dy > 16) return [...prev, x, y];
+          return prev;
+        });
+      }
     }
+  };
+
+  const handlePenUp = async () => {
+    if (!isDrawingPen || selectedTool !== 'pen') return;
+    setIsDrawingPen(false);
+
+    if (penPoints.length < 4) {
+      setPenPoints([]);
+      return;
+    }
+
+    const objectId = generateId();
+    const objectRef = doc(db, 'boards', boardId, 'objects', objectId);
+    const objectData = {
+      type: 'pen' as const,
+      x: 0,
+      y: 0,
+      points: penPoints,
+      color: selectedColor,
+      strokeWidth: 3,
+      createdBy: user.uid,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    try {
+      await setDoc(objectRef, objectData);
+      pushAction({
+        type: 'create',
+        objectId,
+        before: null,
+        after: objectData,
+        fullObject: { id: objectId, ...objectData },
+      });
+    } catch {
+      addNotification('Failed to save stroke', 'error');
+    }
+    setPenPoints([]);
   };
 
   const handleWheel = (e: any) => {
@@ -176,7 +245,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
       setConnectorFrom(null);
 
       // Create object if a tool is selected (not connector — connector needs object clicks)
-      if (selectedTool !== 'select' && selectedTool !== 'connector' && !isViewer) {
+      if (selectedTool !== 'select' && selectedTool !== 'connector' && selectedTool !== 'pen' && !isViewer) {
         const stage = e.target.getStage();
         const point = stage.getPointerPosition();
         const x = (point.x - stagePos.x) / stageScale;
@@ -272,6 +341,16 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
         height: 300,
         fontSize: 16,
       };
+    } else if (type === 'triangle') {
+      objectData = { ...objectData, type: 'triangle', radius: 60 };
+    } else if (type === 'hexagon') {
+      objectData = { ...objectData, type: 'hexagon', radius: 60 };
+    } else if (type === 'star') {
+      objectData = { ...objectData, type: 'star', radius: 60 };
+    } else if (type === 'diamond') {
+      objectData = { ...objectData, type: 'diamond', width: 100, height: 140 };
+    } else if (type === 'line') {
+      objectData = { ...objectData, type: 'line', points: [0, 0, 150, 0] };
     }
 
     try {
@@ -330,6 +409,10 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
   useEffect(() => {
     if (selectedIds.length > 0 && transformerRef.current) {
       const nodes = selectedIds
+        .filter((id) => {
+          const obj = objects.find((o) => o.id === id);
+          return obj && obj.type !== 'pen';
+        })
         .map((id) => nodeRefs.current.get(id))
         .filter(Boolean);
       transformerRef.current.nodes(nodes);
@@ -358,11 +441,13 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
       updatedAt: Date.now(),
     };
 
-    if (obj.type === 'circle') {
+    if (obj.type === 'circle' || obj.type === 'triangle' || obj.type === 'hexagon' || obj.type === 'star') {
       updates.radius = Math.max(10, (obj.radius || 60) * Math.max(scaleX, scaleY));
-    } else if (obj.type === 'sticky' || obj.type === 'rectangle' || obj.type === 'frame') {
+    } else if (obj.type === 'sticky' || obj.type === 'rectangle' || obj.type === 'frame' || obj.type === 'diamond') {
       updates.width = Math.max(20, (obj.width || 150) * scaleX);
       updates.height = Math.max(20, (obj.height || 100) * scaleY);
+    } else if (obj.type === 'line' && obj.points) {
+      updates.points = obj.points.map((v, i) => v * (i % 2 === 0 ? scaleX : scaleY));
     }
 
     updateObject(obj.id, updates);
@@ -594,7 +679,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
     });
   }, [boardId, selectedColor, user.uid, pushAction]);
 
-  // Handle object click — supports shift-click multi-select and connector tool
+  // Handle object click — supports shift-click multi-select, connector tool, and group selection
   const handleObjectSelect = useCallback((objId: string, e: any) => {
     // Connector tool: two-click flow
     if (selectedTool === 'connector') {
@@ -615,9 +700,78 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
           : [...prev, objId]
       );
     } else {
-      setSelectedIds([objId]);
+      // Check if object is in a group — select all group members
+      const clickedObj = objects.find((o) => o.id === objId);
+      if (clickedObj?.groupId) {
+        const groupMembers = objects.filter((o) => o.groupId === clickedObj.groupId).map((o) => o.id);
+        setSelectedIds(groupMembers);
+      } else {
+        setSelectedIds([objId]);
+      }
     }
-  }, [selectedTool, connectorFrom, createConnector]);
+  }, [selectedTool, connectorFrom, createConnector, objects]);
+
+  // Group selected objects
+  const handleGroup = useCallback(async () => {
+    if (selectedIds.length < 2) return;
+    const newGroupId = generateId();
+    await Promise.all(
+      selectedIds.map((id) => updateObject(id, { groupId: newGroupId, updatedAt: Date.now() }))
+    );
+    addNotification(`Grouped ${selectedIds.length} objects`, 'success');
+  }, [selectedIds, updateObject, addNotification]);
+
+  // Ungroup objects
+  const handleUngroup = useCallback(async () => {
+    const groupIds = new Set(
+      selectedIds.map((id) => objects.find((o) => o.id === id)?.groupId).filter(Boolean)
+    );
+    const toUngroup = objects.filter((o) => o.groupId && groupIds.has(o.groupId));
+    await Promise.all(
+      toUngroup.map((o) => {
+        const ref = doc(db, 'boards', boardId, 'objects', o.id);
+        return updateDoc(ref, { groupId: deleteField(), updatedAt: Date.now() });
+      })
+    );
+    addNotification('Ungrouped', 'success');
+  }, [selectedIds, objects, boardId, addNotification]);
+
+  // Boolean operations on shapes
+  const handleBooleanOp = useCallback(async (operation: 'union' | 'subtract' | 'intersect') => {
+    if (selectedIds.length !== 2) return;
+    const shapeA = objects.find((o) => o.id === selectedIds[0]);
+    const shapeB = objects.find((o) => o.id === selectedIds[1]);
+    if (!shapeA || !shapeB) return;
+
+    try {
+      const { computeBoolean } = await import('../lib/booleanOps');
+      const resultPoints = computeBoolean(shapeA, shapeB, operation);
+      if (!resultPoints || resultPoints.length < 6) {
+        addNotification('Shapes do not overlap or result is empty', 'info');
+        return;
+      }
+
+      const newId = generateId();
+      const newObj = {
+        type: 'pen' as const,
+        x: 0,
+        y: 0,
+        points: resultPoints,
+        color: shapeA.color,
+        strokeWidth: 2,
+        createdBy: user.uid,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      await setDoc(doc(db, 'boards', boardId, 'objects', newId), newObj);
+      await deleteObject(shapeA.id);
+      await deleteObject(shapeB.id);
+      setSelectedIds([newId]);
+      addNotification(`${operation.charAt(0).toUpperCase() + operation.slice(1)} complete`, 'success');
+    } catch {
+      addNotification('Boolean operation failed', 'error');
+    }
+  }, [selectedIds, objects, boardId, user.uid, deleteObject, addNotification]);
 
   // Keyboard shortcuts: Delete, Copy, Paste, Undo, Redo
   React.useEffect(() => {
@@ -642,6 +796,8 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
         const toolMap: Record<string, Tool | 'template'> = {
           v: 'select', s: 'sticky', r: 'rectangle', c: 'circle',
           t: 'text', f: 'frame', l: 'connector', m: 'template',
+          '3': 'triangle', d: 'diamond', a: 'star', h: 'hexagon',
+          i: 'line', p: 'pen',
         };
         const mapped = toolMap[e.key.toLowerCase()];
         if (mapped && !isViewer) {
@@ -750,8 +906,13 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
         ref={stageRef}
         width={window.innerWidth}
         height={window.innerHeight}
-        draggable={selectedTool === 'select'}
+        draggable={selectedTool === 'select' && !isDrawingPen}
+        onMouseDown={handlePenDown}
+        onTouchStart={handlePenDown}
         onMouseMove={handleMouseMove}
+        onTouchMove={handleMouseMove}
+        onMouseUp={handlePenUp}
+        onTouchEnd={handlePenUp}
         onWheel={handleWheel}
         onClick={handleStageClick}
         onTap={handleStageClick}
@@ -764,7 +925,7 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
         <Layer>
           {[...objects]
             .sort((a, b) => {
-              const order: Record<string, number> = { frame: 0, connector: 1, rectangle: 2, circle: 2, sticky: 3, text: 3 };
+              const order: Record<string, number> = { frame: 0, connector: 1, rectangle: 2, circle: 2, triangle: 2, diamond: 2, star: 2, hexagon: 2, line: 2, pen: 2, sticky: 3, text: 3 };
               return (order[a.type] ?? 2) - (order[b.type] ?? 2);
             })
             .map((obj) => {
@@ -820,6 +981,32 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
                     onStartEditing={handleStartEditing}
                   />
                 );
+              } else if (obj.type === 'triangle' || obj.type === 'diamond' || obj.type === 'star' || obj.type === 'hexagon' || obj.type === 'line') {
+                return (
+                  <PolygonShape
+                    key={obj.id}
+                    shape={obj}
+                    onUpdate={updateObject}
+                    isSelected={selectedIds.includes(obj.id)}
+                    onSelect={(e: any) => handleObjectSelect(obj.id, e)}
+                    isConnectorSource={connectorFrom === obj.id}
+                    isConnectorMode={selectedTool === 'connector'}
+                    nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
+                    onTransformEnd={() => handleTransformEnd(obj)}
+                  />
+                );
+              } else if (obj.type === 'pen') {
+                return (
+                  <FreehandPath
+                    key={obj.id}
+                    shape={obj}
+                    onUpdate={updateObject}
+                    isSelected={selectedIds.includes(obj.id)}
+                    onSelect={(e: any) => handleObjectSelect(obj.id, e)}
+                    isConnectorMode={selectedTool === 'connector'}
+                    nodeRef={(node) => { if (node) nodeRefs.current.set(obj.id, node); }}
+                  />
+                );
               } else {
                 return (
                   <Shape
@@ -836,6 +1023,18 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
                 );
               }
             })}
+
+          {isDrawingPen && penPoints.length >= 4 && (
+            <Line
+              points={penPoints}
+              stroke={selectedColor}
+              strokeWidth={3}
+              tension={0.4}
+              lineCap="round"
+              lineJoin="round"
+              listening={false}
+            />
+          )}
 
           {!isViewer && (
             <Transformer
@@ -1029,6 +1228,40 @@ export const Board: React.FC<BoardProps> = ({ boardId, user, onBackToLanding }) 
           }}
           onClose={() => setContextMenu(null)}
           isReadOnly={isViewer}
+          onGroup={(() => {
+            // Show Group when 2+ selected and none are already grouped
+            if (selectedIds.length < 2) return undefined;
+            const anyGrouped = selectedIds.some((id) => objects.find((o) => o.id === id)?.groupId);
+            if (anyGrouped) return undefined;
+            return () => { handleGroup(); setContextMenu(null); };
+          })()}
+          onUngroup={(() => {
+            // Show Ungroup when selection contains grouped objects
+            const hasGrouped = selectedIds.some((id) => objects.find((o) => o.id === id)?.groupId);
+            if (!hasGrouped) return undefined;
+            return () => { handleUngroup(); setContextMenu(null); };
+          })()}
+          onBooleanUnion={(() => {
+            if (selectedIds.length !== 2) return undefined;
+            const boolTypes = ['rectangle', 'circle', 'triangle', 'hexagon', 'star', 'diamond'];
+            const valid = selectedIds.every((id) => { const o = objects.find((obj) => obj.id === id); return o && boolTypes.includes(o.type); });
+            if (!valid) return undefined;
+            return () => { handleBooleanOp('union'); setContextMenu(null); };
+          })()}
+          onBooleanSubtract={(() => {
+            if (selectedIds.length !== 2) return undefined;
+            const boolTypes = ['rectangle', 'circle', 'triangle', 'hexagon', 'star', 'diamond'];
+            const valid = selectedIds.every((id) => { const o = objects.find((obj) => obj.id === id); return o && boolTypes.includes(o.type); });
+            if (!valid) return undefined;
+            return () => { handleBooleanOp('subtract'); setContextMenu(null); };
+          })()}
+          onBooleanIntersect={(() => {
+            if (selectedIds.length !== 2) return undefined;
+            const boolTypes = ['rectangle', 'circle', 'triangle', 'hexagon', 'star', 'diamond'];
+            const valid = selectedIds.every((id) => { const o = objects.find((obj) => obj.id === id); return o && boolTypes.includes(o.type); });
+            if (!valid) return undefined;
+            return () => { handleBooleanOp('intersect'); setContextMenu(null); };
+          })()}
         />
       )}
 

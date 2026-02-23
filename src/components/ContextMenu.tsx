@@ -11,6 +11,11 @@ interface ContextMenuProps {
   onReact?: () => void;
   onClose: () => void;
   isReadOnly?: boolean;
+  onGroup?: () => void;
+  onUngroup?: () => void;
+  onBooleanUnion?: () => void;
+  onBooleanSubtract?: () => void;
+  onBooleanIntersect?: () => void;
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -23,6 +28,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onReact,
   onClose,
   isReadOnly,
+  onGroup,
+  onUngroup,
+  onBooleanUnion,
+  onBooleanSubtract,
+  onBooleanIntersect,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -126,6 +136,71 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         >
           React
         </button>
+      )}
+      {!isReadOnly && (onGroup || onUngroup) && (
+        <>
+          <div style={{ ...styles.divider, background: theme.border }} />
+          {onGroup && (
+            <button
+              role="menuitem"
+              style={getItemStyle('group')}
+              onClick={onGroup}
+              onMouseEnter={() => setHoveredItem('group')}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              Group
+            </button>
+          )}
+          {onUngroup && (
+            <button
+              role="menuitem"
+              style={getItemStyle('ungroup')}
+              onClick={onUngroup}
+              onMouseEnter={() => setHoveredItem('ungroup')}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              Ungroup
+            </button>
+          )}
+        </>
+      )}
+      {!isReadOnly && (onBooleanUnion || onBooleanSubtract || onBooleanIntersect) && (
+        <>
+          <div style={{ ...styles.divider, background: theme.border }} />
+          {onBooleanUnion && (
+            <button
+              role="menuitem"
+              style={getItemStyle('union')}
+              onClick={onBooleanUnion}
+              onMouseEnter={() => setHoveredItem('union')}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              Union
+            </button>
+          )}
+          {onBooleanSubtract && (
+            <button
+              role="menuitem"
+              style={getItemStyle('subtract')}
+              onClick={onBooleanSubtract}
+              onMouseEnter={() => setHoveredItem('subtract')}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              Subtract
+            </button>
+          )}
+          {onBooleanIntersect && (
+            <button
+              role="menuitem"
+              style={getItemStyle('intersect')}
+              onClick={onBooleanIntersect}
+              onMouseEnter={() => setHoveredItem('intersect')}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              Intersect
+            </button>
+          )}
+        </>
       )}
       {!isReadOnly && (
         <>

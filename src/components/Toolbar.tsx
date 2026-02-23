@@ -5,7 +5,7 @@ import { BoardObject } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { Tooltip } from './Tooltip';
 
-export type Tool = 'select' | 'sticky' | 'rectangle' | 'circle' | 'text' | 'frame' | 'connector';
+export type Tool = 'select' | 'sticky' | 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'star' | 'hexagon' | 'line' | 'pen' | 'text' | 'frame' | 'connector';
 
 interface ToolbarProps {
   selectedTool: Tool;
@@ -31,8 +31,14 @@ const FONT_STEP = 2;
 const tools: { id: Tool | 'template'; icon: string; label: string; shortcut: string }[] = [
   { id: 'select', icon: '🖱️', label: 'Select', shortcut: 'V' },
   { id: 'sticky', icon: '📝', label: 'Note', shortcut: 'S' },
-  { id: 'rectangle', icon: '⬜', label: 'Rectangle', shortcut: 'R' },
+  { id: 'rectangle', icon: '⬜', label: 'Rect', shortcut: 'R' },
   { id: 'circle', icon: '⭕', label: 'Circle', shortcut: 'C' },
+  { id: 'triangle', icon: '△', label: 'Triangle', shortcut: '3' },
+  { id: 'diamond', icon: '◇', label: 'Diamond', shortcut: 'D' },
+  { id: 'star', icon: '★', label: 'Star', shortcut: 'A' },
+  { id: 'hexagon', icon: '⬡', label: 'Hexagon', shortcut: 'H' },
+  { id: 'line', icon: '╱', label: 'Line', shortcut: 'I' },
+  { id: 'pen', icon: '✏️', label: 'Pen', shortcut: 'P' },
   { id: 'text', icon: '🔤', label: 'Text', shortcut: 'T' },
   { id: 'frame', icon: '🖼️', label: 'Frame', shortcut: 'F' },
   { id: 'connector', icon: '🔗', label: 'Connect', shortcut: 'L' },
