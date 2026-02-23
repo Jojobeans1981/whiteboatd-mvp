@@ -4,6 +4,7 @@ import { db } from '../lib/firebase';
 import { BoardObject, User } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { autoGridLayout, groupByColorLayout } from '../lib/layoutUtils';
 
 type AIStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -53,6 +54,54 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
     }));
   };
 
+  // Handle simple commands locally without calling the AI API
+  const tryLocalCommand = async (cmd: string): Promise<boolean> => {
+    const lower = cmd.toLowerCase().trim();
+
+    // Clear / reset board
+    if (/^(clear|reset|delete all|remove all|clear the board|clear board|start fresh|wipe)/.test(lower)) {
+      if (objects.length === 0) {
+        setStatus('success');
+        setMessage('Board is already empty.');
+        return true;
+      }
+      await Promise.all(objects.map((obj) => deleteDoc(doc(db, 'boards', boardId, 'objects', obj.id))));
+      setStatus('success');
+      setMessage(`Cleared board (${objects.length} objects removed).`);
+      return true;
+    }
+
+    // Tidy / auto-grid
+    if (/^(tidy|organize|arrange|auto.?grid|clean up|neat)/.test(lower)) {
+      const positions = autoGridLayout(objects);
+      if (positions.length === 0) {
+        setStatus('success');
+        setMessage('Nothing to organize.');
+        return true;
+      }
+      await Promise.all(positions.map((p) => updateDoc(doc(db, 'boards', boardId, 'objects', p.id), { x: p.x, y: p.y, updatedAt: Date.now() })));
+      setStatus('success');
+      setMessage(`Organized ${positions.length} objects in a grid.`);
+      return true;
+    }
+
+    // Sort / group by color
+    if (/^(sort|group).*(color|colour)/.test(lower) || /^(color|colour).*(sort|group)/.test(lower)) {
+      const positions = groupByColorLayout(objects);
+      if (positions.length === 0) {
+        setStatus('success');
+        setMessage('Nothing to sort.');
+        return true;
+      }
+      await Promise.all(positions.map((p) => updateDoc(doc(db, 'boards', boardId, 'objects', p.id), { x: p.x, y: p.y, updatedAt: Date.now() })));
+      setStatus('success');
+      setMessage(`Sorted ${positions.length} objects by color.`);
+      return true;
+    }
+
+    return false;
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputValue.trim() || status === 'loading') return;
@@ -61,6 +110,12 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
     setMessage('');
 
     try {
+      // Try handling locally first (instant, no API call needed)
+      if (await tryLocalCommand(inputValue.trim())) {
+        setInputValue('');
+        setTimeout(() => { setStatus('idle'); setMessage(''); }, 4000);
+        return;
+      }
       // Abort if the request takes longer than 30 seconds
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 30000);
