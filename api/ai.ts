@@ -116,17 +116,17 @@ const TOOL_DECLARATIONS = [
   },
   {
     name: 'createShape',
-    description: 'Create a geometric shape (rectangle or circle) on the whiteboard.',
+    description: 'Create a geometric shape on the whiteboard.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         x: { type: SchemaType.NUMBER, description: 'X coordinate' },
         y: { type: SchemaType.NUMBER, description: 'Y coordinate' },
-        shapeType: { type: SchemaType.STRING, description: 'Type of shape: "rectangle" or "circle"' },
+        shapeType: { type: SchemaType.STRING, description: 'Type of shape: "rectangle", "circle", "triangle", "diamond", "star", "hexagon", or "line"' },
         color: { type: SchemaType.STRING, description: 'Fill color hex' },
-        width: { type: SchemaType.NUMBER, description: 'Width for rectangle, default 150' },
-        height: { type: SchemaType.NUMBER, description: 'Height for rectangle, default 100' },
-        radius: { type: SchemaType.NUMBER, description: 'Radius for circle, default 60' },
+        width: { type: SchemaType.NUMBER, description: 'Width for rectangle/diamond, default 150' },
+        height: { type: SchemaType.NUMBER, description: 'Height for rectangle/diamond, default 100' },
+        radius: { type: SchemaType.NUMBER, description: 'Radius for circle/triangle/star/hexagon, default 60' },
       },
       required: ['x', 'y', 'shapeType', 'color'],
     },
@@ -378,7 +378,13 @@ function processToolCall(
       if (input.shapeType === 'rectangle') {
         data.width = input.width || 150;
         data.height = input.height || 100;
+      } else if (input.shapeType === 'diamond') {
+        data.width = input.width || 100;
+        data.height = input.height || 140;
+      } else if (input.shapeType === 'line') {
+        data.points = [0, 0, 150, 0];
       } else {
+        // circle, triangle, star, hexagon — all radius-based
         data.radius = input.radius || 60;
       }
       return {
@@ -451,6 +457,44 @@ function processToolCall(
             updatedAt: now,
           },
         }],
+      };
+    }
+
+    case 'moveObjects': {
+      const ops: Operation[] = (input.moves || []).map((m: any) => ({
+        action: 'update' as const,
+        objectId: m.objectId,
+        data: { x: m.x, y: m.y, updatedAt: now },
+      }));
+      return {
+        message: `Moved ${ops.length} objects`,
+        operations: ops,
+      };
+    }
+
+    case 'resizeObjects': {
+      const ops: Operation[] = (input.resizes || []).map((r: any) => {
+        const data: Record<string, any> = { updatedAt: now };
+        if (r.width !== undefined) data.width = r.width;
+        if (r.height !== undefined) data.height = r.height;
+        if (r.radius !== undefined) data.radius = r.radius;
+        return { action: 'update' as const, objectId: r.objectId, data };
+      });
+      return {
+        message: `Resized ${ops.length} objects`,
+        operations: ops,
+      };
+    }
+
+    case 'changeColors': {
+      const ops: Operation[] = (input.colorChanges || []).map((c: any) => ({
+        action: 'update' as const,
+        objectId: c.objectId,
+        data: { color: c.color, updatedAt: now },
+      }));
+      return {
+        message: `Changed color of ${ops.length} objects`,
+        operations: ops,
       };
     }
 
@@ -691,10 +735,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const response = result.response;
 
-      // Check for text response
-      const text = response.text?.();
-      if (text) {
-        finalMessage = text;
+      // Check for text response (text() throws when response has only function calls)
+      try {
+        const text = response.text?.();
+        if (text) {
+          finalMessage = text;
+        }
+      } catch (_) {
+        // Expected when response contains only function calls
       }
 
       // Check for function calls
