@@ -91,29 +91,36 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
     const command = inputValue.trim();
     if (!command || status === 'loading') return;
 
-    // Capture objects snapshot before any async work (avoids stale closure issues)
     const objectsSnapshot = [...objects];
-
-    setStatus('loading');
-    setMessage('');
     setInputValue('');
 
-    // Safety net: force-reset after 20s no matter what (even if fetch hangs forever)
+    // Try local commands first — no loading spinner, instant result
+    try {
+      const localResult = await tryLocalCommand(command, objectsSnapshot);
+      if (localResult !== null) {
+        setStatus('success');
+        setMessage(localResult);
+        setTimeout(() => { setStatus('idle'); setMessage(''); }, 4000);
+        return;
+      }
+    } catch {
+      setStatus('error');
+      setMessage('Command failed — please try again.');
+      setTimeout(() => { setStatus('idle'); setMessage(''); }, 4000);
+      return;
+    }
+
+    // Not a local command — call the AI API
+    setStatus('loading');
+    setMessage('');
+
+    // Safety net: force-reset after 20s even if fetch hangs
     const safetyReset = setTimeout(() => {
       setStatus('error');
       setMessage('Request timed out — please try again.');
     }, 20000);
 
     try {
-      // Try handling locally first (instant, no API call needed)
-      const localResult = await tryLocalCommand(command, objectsSnapshot);
-      if (localResult !== null) {
-        setStatus('success');
-        setMessage(localResult);
-        return;
-      }
-
-      // Abort fetch after 12 seconds (Vercel hobby times out at 10s anyway)
       const controller = new AbortController();
       const fetchTimeout = setTimeout(() => controller.abort(), 12000);
 
@@ -132,7 +139,6 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
 
       clearTimeout(fetchTimeout);
 
-      // Handle non-JSON responses (e.g. Vercel 504 timeout returns HTML)
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
         throw new Error(response.status === 504 ? 'Request timed out' : `Server error (${response.status})`);
@@ -166,11 +172,7 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
       addNotification(errMsg, 'error');
     } finally {
       clearTimeout(safetyReset);
-      // Always reset to idle after delay
-      setTimeout(() => {
-        setStatus('idle');
-        setMessage('');
-      }, 4000);
+      setTimeout(() => { setStatus('idle'); setMessage(''); }, 4000);
     }
   };
 
