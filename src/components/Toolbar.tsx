@@ -1,6 +1,6 @@
 // src/components/Toolbar.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { BoardObject } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { Tooltip } from './Tooltip';
@@ -28,22 +28,30 @@ const MIN_FONT = 8;
 const MAX_FONT = 72;
 const FONT_STEP = 2;
 
-const tools: { id: Tool | 'template'; icon: string; label: string; shortcut: string }[] = [
+const topTools: { id: Tool | 'template'; icon: string; label: string; shortcut: string }[] = [
   { id: 'select', icon: '🖱️', label: 'Select', shortcut: 'V' },
   { id: 'sticky', icon: '📝', label: 'Note', shortcut: 'S' },
-  { id: 'rectangle', icon: '⬜', label: 'Rect', shortcut: 'R' },
+];
+
+const shapeTools: { id: Tool; icon: string; label: string; shortcut: string }[] = [
+  { id: 'rectangle', icon: '⬜', label: 'Rectangle', shortcut: 'R' },
   { id: 'circle', icon: '⭕', label: 'Circle', shortcut: 'C' },
   { id: 'triangle', icon: '△', label: 'Triangle', shortcut: '3' },
   { id: 'diamond', icon: '◇', label: 'Diamond', shortcut: 'D' },
   { id: 'star', icon: '★', label: 'Star', shortcut: 'A' },
   { id: 'hexagon', icon: '⬡', label: 'Hexagon', shortcut: 'H' },
   { id: 'line', icon: '╱', label: 'Line', shortcut: 'I' },
+];
+
+const bottomTools: { id: Tool | 'template'; icon: string; label: string; shortcut: string }[] = [
   { id: 'pen', icon: '✏️', label: 'Pen', shortcut: 'P' },
   { id: 'text', icon: '🔤', label: 'Text', shortcut: 'T' },
   { id: 'frame', icon: '🖼️', label: 'Frame', shortcut: 'F' },
   { id: 'connector', icon: '🔗', label: 'Connect', shortcut: 'L' },
   { id: 'template', icon: '📋', label: 'Templates', shortcut: 'M' },
 ];
+
+const shapeToolIds = new Set(shapeTools.map((s) => s.id));
 
 export const Toolbar: React.FC<ToolbarProps> = ({
   selectedTool,
@@ -60,7 +68,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   isReadOnly,
 }) => {
   const [hovered, setHovered] = useState<string | null>(null);
+  const [shapesOpen, setShapesOpen] = useState(false);
+  const shapesRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!shapesOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (shapesRef.current && !shapesRef.current.contains(e.target as Node)) {
+        setShapesOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
+  }, [shapesOpen]);
 
   const showFontSize = selectedObject && (selectedObject.type === 'sticky' || selectedObject.type === 'text' || selectedObject.type === 'frame');
   const currentFontSize = selectedObject?.fontSize || (selectedObject?.type === 'text' ? 24 : selectedObject?.type === 'frame' ? 16 : 14);
@@ -94,36 +116,96 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     ...(hovered === id ? { background: theme.surfaceHover } : {}),
   });
 
+  const isShapeSelected = shapeToolIds.has(selectedTool);
+  const activeShape = shapeTools.find((s) => s.id === selectedTool);
+  const shapesReadOnlyDisabled = isReadOnly;
+
+  const renderToolButton = (t: { id: Tool | 'template'; icon: string; label: string; shortcut: string }) => {
+    const isCreationTool = t.id !== 'select';
+    const readOnlyDisabled = isReadOnly && isCreationTool;
+    return (
+      <Tooltip key={t.id} content={readOnlyDisabled ? `${t.label} (view-only)` : t.label} shortcut={readOnlyDisabled ? undefined : t.shortcut}>
+        <button
+          style={getToolBtnStyle(t.id as Tool, readOnlyDisabled)}
+          onClick={() => {
+            if (readOnlyDisabled) return;
+            if (t.id === 'template') {
+              onTemplateClick?.();
+              return;
+            }
+            onToolChange(t.id as Tool);
+          }}
+          onMouseEnter={() => setHovered(t.id)}
+          onMouseLeave={() => setHovered(null)}
+          aria-label={t.label}
+          aria-pressed={selectedTool === t.id}
+          aria-disabled={readOnlyDisabled}
+        >
+          <span style={styles.toolIcon} aria-hidden="true">{t.icon}</span>
+          <span style={{ ...styles.toolLabel, color: theme.textMuted }}>{t.label}</span>
+        </button>
+      </Tooltip>
+    );
+  };
+
   return (
     <div role="toolbar" aria-label="Drawing tools" style={{ ...styles.toolbar, background: theme.surface, boxShadow: theme.shadowHeavy }}>
       <div style={styles.section}>
-        {tools.map((t) => {
-          const isCreationTool = t.id !== 'select';
-          const readOnlyDisabled = isReadOnly && isCreationTool;
-          return (
-          <Tooltip key={t.id} content={readOnlyDisabled ? `${t.label} (view-only)` : t.label} shortcut={readOnlyDisabled ? undefined : t.shortcut}>
+        {topTools.map(renderToolButton)}
+
+        {/* Basic Shapes dropdown */}
+        <div ref={shapesRef} style={{ position: 'relative' }}>
+          <Tooltip content={shapesReadOnlyDisabled ? 'Shapes (view-only)' : 'Basic Shapes'}>
             <button
-              style={getToolBtnStyle(t.id as Tool, readOnlyDisabled)}
-              onClick={() => {
-                if (readOnlyDisabled) return;
-                if (t.id === 'template') {
-                  onTemplateClick?.();
-                  return;
-                }
-                onToolChange(t.id as Tool);
+              style={{
+                ...styles.toolButton,
+                background: theme.bg,
+                ...(isShapeSelected ? { background: theme.surfaceActive, borderColor: theme.accent } : {}),
+                ...(hovered === 'shapes-toggle' && !isShapeSelected ? { background: theme.surfaceHover } : {}),
+                ...(shapesReadOnlyDisabled ? { opacity: 0.4, cursor: 'not-allowed' } : {}),
               }}
-              onMouseEnter={() => setHovered(t.id)}
+              onClick={() => {
+                if (shapesReadOnlyDisabled) return;
+                setShapesOpen((prev) => !prev);
+              }}
+              onMouseEnter={() => setHovered('shapes-toggle')}
               onMouseLeave={() => setHovered(null)}
-              aria-label={t.label}
-              aria-pressed={selectedTool === t.id}
-              aria-disabled={readOnlyDisabled}
+              aria-label="Basic Shapes"
+              aria-expanded={shapesOpen}
+              aria-haspopup="true"
             >
-              <span style={styles.toolIcon} aria-hidden="true">{t.icon}</span>
-              <span style={{ ...styles.toolLabel, color: theme.textMuted }}>{t.label}</span>
+              <span style={styles.toolIcon} aria-hidden="true">{activeShape?.icon || '⬜'}</span>
+              <span style={{ ...styles.toolLabel, color: theme.textMuted }}>Shapes ▾</span>
             </button>
           </Tooltip>
-          );
-        })}
+          {shapesOpen && (
+            <div style={{ ...styles.dropdown, background: theme.surface, boxShadow: theme.shadowHeavy }}>
+              {shapeTools.map((s) => (
+                <button
+                  key={s.id}
+                  style={{
+                    ...styles.dropdownItem,
+                    color: theme.text,
+                    ...(selectedTool === s.id ? { background: theme.surfaceActive } : {}),
+                    ...(hovered === `shape-${s.id}` && selectedTool !== s.id ? { background: theme.surfaceHover } : {}),
+                  }}
+                  onClick={() => {
+                    onToolChange(s.id);
+                    setShapesOpen(false);
+                  }}
+                  onMouseEnter={() => setHovered(`shape-${s.id}`)}
+                  onMouseLeave={() => setHovered(null)}
+                >
+                  <span aria-hidden="true">{s.icon}</span>
+                  <span>{s.label}</span>
+                  <span style={{ ...styles.shortcutHint, color: theme.textMuted }}>{s.shortcut}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {bottomTools.map(renderToolButton)}
       </div>
 
       <div style={{ ...styles.divider, background: theme.border }} />
@@ -321,5 +403,34 @@ const styles: { [key: string]: React.CSSProperties } = {
     minWidth: '36px',
     textAlign: 'center' as const,
     color: '#4b5563',
+  },
+  dropdown: {
+    position: 'absolute' as const,
+    top: '100%',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    marginTop: '6px',
+    borderRadius: '10px',
+    padding: '4px 0',
+    minWidth: '160px',
+    zIndex: 2000,
+  },
+  dropdownItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    width: '100%',
+    padding: '8px 14px',
+    border: 'none',
+    background: 'none',
+    textAlign: 'left' as const,
+    fontSize: '13px',
+    cursor: 'pointer',
+    transition: 'background 0.1s',
+  },
+  shortcutHint: {
+    marginLeft: 'auto',
+    fontSize: '11px',
+    fontWeight: 500,
   },
 };
