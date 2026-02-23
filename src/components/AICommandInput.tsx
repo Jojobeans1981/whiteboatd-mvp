@@ -54,68 +54,59 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
     }));
   };
 
-  // Handle simple commands locally without calling the AI API
-  const tryLocalCommand = async (cmd: string): Promise<boolean> => {
+  // Handle simple commands locally without calling the AI API.
+  // Returns a success message string, or null if not a local command.
+  const tryLocalCommand = async (cmd: string, currentObjects: BoardObject[]): Promise<string | null> => {
     const lower = cmd.toLowerCase().trim();
 
     // Clear / reset board
     if (/^(clear|reset|delete all|remove all|clear the board|clear board|start fresh|wipe)/.test(lower)) {
-      if (objects.length === 0) {
-        setStatus('success');
-        setMessage('Board is already empty.');
-        return true;
-      }
-      await Promise.all(objects.map((obj) => deleteDoc(doc(db, 'boards', boardId, 'objects', obj.id))));
-      setStatus('success');
-      setMessage(`Cleared board (${objects.length} objects removed).`);
-      return true;
+      if (currentObjects.length === 0) return 'Board is already empty.';
+      const count = currentObjects.length;
+      await Promise.all(currentObjects.map((obj) => deleteDoc(doc(db, 'boards', boardId, 'objects', obj.id))));
+      return `Cleared board (${count} objects removed).`;
     }
 
     // Tidy / auto-grid
     if (/^(tidy|organize|arrange|auto.?grid|clean up|neat)/.test(lower)) {
-      const positions = autoGridLayout(objects);
-      if (positions.length === 0) {
-        setStatus('success');
-        setMessage('Nothing to organize.');
-        return true;
-      }
+      const positions = autoGridLayout(currentObjects);
+      if (positions.length === 0) return 'Nothing to organize.';
       await Promise.all(positions.map((p) => updateDoc(doc(db, 'boards', boardId, 'objects', p.id), { x: p.x, y: p.y, updatedAt: Date.now() })));
-      setStatus('success');
-      setMessage(`Organized ${positions.length} objects in a grid.`);
-      return true;
+      return `Organized ${positions.length} objects in a grid.`;
     }
 
     // Sort / group by color
     if (/^(sort|group).*(color|colour)/.test(lower) || /^(color|colour).*(sort|group)/.test(lower)) {
-      const positions = groupByColorLayout(objects);
-      if (positions.length === 0) {
-        setStatus('success');
-        setMessage('Nothing to sort.');
-        return true;
-      }
+      const positions = groupByColorLayout(currentObjects);
+      if (positions.length === 0) return 'Nothing to sort.';
       await Promise.all(positions.map((p) => updateDoc(doc(db, 'boards', boardId, 'objects', p.id), { x: p.x, y: p.y, updatedAt: Date.now() })));
-      setStatus('success');
-      setMessage(`Sorted ${positions.length} objects by color.`);
-      return true;
+      return `Sorted ${positions.length} objects by color.`;
     }
 
-    return false;
+    return null;
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputValue.trim() || status === 'loading') return;
+    const command = inputValue.trim();
+    if (!command || status === 'loading') return;
+
+    // Capture objects snapshot before any async work (avoids stale closure issues)
+    const objectsSnapshot = [...objects];
 
     setStatus('loading');
     setMessage('');
+    setInputValue('');
 
     try {
       // Try handling locally first (instant, no API call needed)
-      if (await tryLocalCommand(inputValue.trim())) {
-        setInputValue('');
-        setTimeout(() => { setStatus('idle'); setMessage(''); }, 4000);
+      const localResult = await tryLocalCommand(command, objectsSnapshot);
+      if (localResult !== null) {
+        setStatus('success');
+        setMessage(localResult);
         return;
       }
+
       // Abort if the request takes longer than 30 seconds
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 30000);
@@ -125,9 +116,9 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          command: inputValue.trim(),
+          command,
           boardId,
-          boardState: objects,
+          boardState: objectsSnapshot,
           userId: user.uid,
           userName: user.displayName || user.email || 'Anonymous',
         }),
@@ -167,13 +158,13 @@ export const AICommandInput: React.FC<AICommandInputProps> = ({ boardId, user, o
         : 'Failed to reach AI service — please try again.';
       setMessage(errMsg);
       addNotification(errMsg, 'error');
+    } finally {
+      // Always reset to idle after delay — guarantees the input never stays stuck
+      setTimeout(() => {
+        setStatus('idle');
+        setMessage('');
+      }, 4000);
     }
-
-    setInputValue('');
-    setTimeout(() => {
-      setStatus('idle');
-      setMessage('');
-    }, 4000);
   };
 
   if (disabled) {
